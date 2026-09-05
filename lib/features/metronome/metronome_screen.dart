@@ -94,7 +94,7 @@ class _MetronomeScreenState extends ConsumerState<MetronomeScreen> {
                     const SizedBox(width: 16),
                     Expanded(
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.start,
                         children: [
                           SizedBox(
                             height: 160,
@@ -181,7 +181,7 @@ class _MetronomeScreenState extends ConsumerState<MetronomeScreen> {
                               _buildDot(_currentPage == 2),
                             ],
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 16),
                           SizedBox(
                             height: 140,
                             child: CustomPaint(
@@ -189,6 +189,10 @@ class _MetronomeScreenState extends ConsumerState<MetronomeScreen> {
                                 history: cadenceState.history,
                                 metricIndex: _currentPage,
                                 showClockTime: _showClockTime,
+                                walkColor: cadenceState.walkColor,
+                                jogColor: cadenceState.jogColor,
+                                runColor: cadenceState.runColor,
+                                currentMode: cadenceState.movementMode,
                               ),
                               size: const Size(double.infinity, 140),
                             ),
@@ -250,6 +254,7 @@ class _MetronomeScreenState extends ConsumerState<MetronomeScreen> {
                               ),
                             ),
                           ),
+                          const SizedBox(height: 16),
                           const SizedBox(height: 12),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -259,6 +264,9 @@ class _MetronomeScreenState extends ConsumerState<MetronomeScreen> {
                               Expanded(child: Center(child: _buildStat('BEATS', '${_scheduler.beatCount}'))),
                             ],
                           ),
+                          const SizedBox(height: 16),
+                          _buildModeButtons(cadenceState),
+                          const SizedBox(height: 16),
                         ],
                       ),
                     ),
@@ -333,7 +341,7 @@ class _MetronomeScreenState extends ConsumerState<MetronomeScreen> {
         _handleWheelDrag(details.delta.dy);
       },
       child: Container(
-        width: 24,
+        width: 35,
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             begin: Alignment.centerLeft,
@@ -442,18 +450,98 @@ class _MetronomeScreenState extends ConsumerState<MetronomeScreen> {
       ),
     );
   }
+
+  Widget _buildModeButtons(CadenceState cadenceState) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildModeBtn(
+            'Walk',
+            MovementMode.walking,
+            cadenceState.movementMode == MovementMode.walking,
+            cadenceState.walkColor,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildModeBtn(
+            'Jog',
+            MovementMode.jogging,
+            cadenceState.movementMode == MovementMode.jogging,
+            cadenceState.jogColor,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildModeBtn(
+            'Run',
+            MovementMode.running,
+            cadenceState.movementMode == MovementMode.running,
+            cadenceState.runColor,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildModeBtn(String label, MovementMode mode, bool isActive, Color color) {
+    return GestureDetector(
+      onTap: () {
+        ref.read(cadenceProvider.notifier).setMovementMode(mode);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive ? color.withValues(alpha: 0.25) : AppColors.surfaceRaised,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isActive ? color : AppColors.hairline,
+            width: isActive ? 2.0 : 1.0,
+          ),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isActive ? color : AppColors.textMuted,
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class MetricGraphPainter extends CustomPainter {
   final List<MetricPoint> history;
   final int metricIndex;
   final bool showClockTime;
+  final Color walkColor;
+  final Color jogColor;
+  final Color runColor;
+  final MovementMode currentMode;
 
   MetricGraphPainter({
     required this.history,
     required this.metricIndex,
     required this.showClockTime,
+    required this.walkColor,
+    required this.jogColor,
+    required this.runColor,
+    required this.currentMode,
   });
+
+  Color _colorForMode(MovementMode m) {
+    switch (m) {
+      case MovementMode.walking:
+        return walkColor;
+      case MovementMode.jogging:
+        return jogColor;
+      case MovementMode.running:
+        return runColor;
+    }
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -540,8 +628,15 @@ class MetricGraphPainter extends CustomPainter {
           final amPm = dt.hour >= 12 ? 'PM' : 'AM';
           label = '$hour:$minute $amPm';
         } else {
-          final minutesAgo = ((endTime - tSec) / 60).round();
-          label = minutesAgo == 0 ? 'Now' : '-${minutesAgo}m';
+          final diffSec = tSec - endTime; // Time difference: negative (past) to 0 (now)
+          if (duration < 60) {
+            final secsAgo = diffSec.round();
+            // diffSec is 0 or negative. If 0, 'Now'. Otherwise '-Xs'.
+            label = secsAgo == 0 ? 'Now' : '${secsAgo}s';
+          } else {
+            final minutesAgo = (diffSec / 60).round();
+            label = minutesAgo == 0 ? 'Now' : '${minutesAgo}m';
+          }
         }
 
         final tp = TextPainter(
@@ -553,49 +648,111 @@ class MetricGraphPainter extends CustomPainter {
         tp.paint(canvas, Offset(xPos, graphHeight + 4));
       }
 
-      final linePaint = Paint()
-        ..color = AppColors.traceCalm
-        ..strokeWidth = 2.5
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round;
+      // Draw segments
+      for (int i = 0; i < history.length - 1; i++) {
+        final p1 = history[i];
+        final p2 = history[i + 1];
 
-      final fillPaint = Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            AppColors.traceCalm.withValues(alpha: 0.35),
-            AppColors.traceCalm.withValues(alpha: 0.0),
-          ],
-        ).createShader(Rect.fromLTWH(0, 0, graphWidth, graphHeight));
-
-      final path = Path();
-      final fillPath = Path();
-      fillPath.moveTo(0, graphHeight);
-
-      for (int i = 0; i < history.length; i++) {
-        final pt = history[i];
-        double val = metricIndex == 0 ? pt.cadence : (metricIndex == 1 ? pt.speed : pt.stride);
-
-        final x = graphWidth * ((pt.timeSeconds - startTime) / (duration == 0 ? 1 : duration));
-        final normY = (val - minY) / (maxY - minY);
-        final clampedY = normY.clamp(0.0, 1.0);
-        final y = graphHeight * (1.0 - clampedY);
-
-        if (i == 0) {
-          path.moveTo(x, y);
-          fillPath.lineTo(x, y);
-        } else {
-          path.lineTo(x, y);
-          fillPath.lineTo(x, y);
+        // Skip drawing across pause gaps (> 2.0 seconds between ticks)
+        if ((p2.timeSeconds - p1.timeSeconds) > 2.0) {
+          continue;
         }
+
+        double val1 = metricIndex == 0 ? p1.cadence : (metricIndex == 1 ? p1.speed : p1.stride);
+        double val2 = metricIndex == 0 ? p2.cadence : (metricIndex == 1 ? p2.speed : p2.stride);
+
+        final x1 = graphWidth * ((p1.timeSeconds - startTime) / (duration == 0 ? 1 : duration));
+        final y1 = graphHeight * (1.0 - ((val1 - minY) / (maxY - minY)).clamp(0.0, 1.0));
+
+        final x2 = graphWidth * ((p2.timeSeconds - startTime) / (duration == 0 ? 1 : duration));
+        final y2 = graphHeight * (1.0 - ((val2 - minY) / (maxY - minY)).clamp(0.0, 1.0));
+
+        final color = _colorForMode(p2.mode);
+
+        final segPath = Path()
+          ..moveTo(x1, graphHeight)
+          ..lineTo(x1, y1)
+          ..lineTo(x2, y2)
+          ..lineTo(x2, graphHeight)
+          ..close();
+
+        final fillPaint = Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              color.withValues(alpha: 0.35),
+              color.withValues(alpha: 0.0),
+            ],
+          ).createShader(Rect.fromLTWH(0, 0, graphWidth, graphHeight));
+
+        canvas.drawPath(segPath, fillPaint);
+
+        final linePaint = Paint()
+          ..color = color
+          ..strokeWidth = 2.5
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round;
+
+        final linePath = Path()
+          ..moveTo(x1, y1)
+          ..lineTo(x2, y2);
+
+        canvas.drawPath(linePath, linePaint);
       }
 
-      fillPath.lineTo(graphWidth, graphHeight);
-      fillPath.close();
+      // If history has only 1 point
+      if (history.length == 1) {
+        final p = history.first;
+        // Use the current active movement mode color from settings instead of the point's recorded mode
+        // This ensures the placeholder updates reactively to mode switches even if the history point is stale
+        final color = _colorForMode(currentMode);
+        
+        double val = metricIndex == 0 ? p.cadence : (metricIndex == 1 ? p.speed : p.stride);
+        final x = graphWidth * ((p.timeSeconds - startTime) / (duration == 0 ? 1 : duration));
+        final y = graphHeight * (1.0 - ((val - minY) / (maxY - minY)).clamp(0.0, 1.0));
 
-      canvas.drawPath(fillPath, fillPaint);
-      canvas.drawPath(path, linePaint);
+        // Faded template gradient fill and sloped line
+        final templatePath = Path()
+          ..moveTo(x, y)
+          ..lineTo(graphWidth, graphHeight)
+          ..lineTo(x, graphHeight)
+          ..close();
+
+        final templateFillPaint = Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              color.withValues(alpha: 0.15),
+              color.withValues(alpha: 0.0),
+            ],
+          ).createShader(Rect.fromLTWH(0, 0, graphWidth, graphHeight));
+        canvas.drawPath(templatePath, templateFillPaint);
+
+        final templateLinePaint = Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [
+              color.withValues(alpha: 0.25),
+              color.withValues(alpha: 0.0),
+            ],
+          ).createShader(Rect.fromLTWH(0, 0, graphWidth, graphHeight))
+          ..strokeWidth = 2.0
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round;
+        
+        final templateLinePath = Path()
+          ..moveTo(x, y)
+          ..lineTo(graphWidth, graphHeight);
+        canvas.drawPath(templateLinePath, templateLinePaint);
+        
+        final ptPaint = Paint()
+          ..color = color
+          ..style = PaintingStyle.fill;
+        canvas.drawCircle(Offset(x, y), 3.5, ptPaint);
+      }
     }
 
     canvas.restore();
@@ -605,6 +762,9 @@ class MetricGraphPainter extends CustomPainter {
   bool shouldRepaint(covariant MetricGraphPainter oldDelegate) {
     return oldDelegate.history != history ||
         oldDelegate.metricIndex != metricIndex ||
-        oldDelegate.showClockTime != showClockTime;
+        oldDelegate.showClockTime != showClockTime ||
+        oldDelegate.walkColor != walkColor ||
+        oldDelegate.jogColor != jogColor ||
+        oldDelegate.runColor != runColor;
   }
 }
