@@ -85,243 +85,254 @@ class _MetronomeScreenState extends ConsumerState<MetronomeScreen> {
                     KnurledBar(onVerticalDragUpdate: _handleWheelDrag),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          SizedBox(
-                            height: 160,
-                            child: PageView(
-                              controller: _pageController,
-                              onPageChanged: (index) {
-                                setState(() {
-                                  _currentPage = index;
-                                });
-                              },
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: [
+                            SizedBox(
+                              height: 160,
+                              child: PageView(
+                                controller: _pageController,
+                                onPageChanged: (index) {
+                                  setState(() {
+                                    _currentPage = index;
+                                  });
+                                },
+                                children: [
+                                  _buildCardPage(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          '${cadenceState.targetCadence}',
+                                          style: const TextStyle(
+                                            fontSize: 56,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.textPrimary,
+                                            letterSpacing: 2.0,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        const Text(
+                                          'SPM',
+                                          style: TextStyle(
+                                            color: AppColors.textMuted,
+                                            fontSize: 14,
+                                            letterSpacing: 1.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  _buildCardPage(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          '${speed.toStringAsFixed(1)} km/h',
+                                          style: const TextStyle(
+                                            fontSize: 36,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.traceCalm,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Pace: $paceStr /km',
+                                          style: const TextStyle(
+                                            color: AppColors.textMuted,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  _buildCardPage(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          '${cadenceState.strideLengthMeters.toStringAsFixed(2)} m',
+                                          style: const TextStyle(
+                                            fontSize: 36,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.traceCalm,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        ValueListenableBuilder<int>(
+                                          valueListenable: ref
+                                              .read(beatSchedulerProvider)
+                                              .beatCountNotifier,
+                                          builder: (context, beatCount, child) {
+                                            return Text(
+                                              'Beats: $beatCount',
+                                              style: const TextStyle(
+                                                color: AppColors.textMuted,
+                                                fontSize: 16,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                _buildCardPage(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        '${cadenceState.targetCadence}',
-                                        style: const TextStyle(
-                                          fontSize: 56,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.textPrimary,
-                                          letterSpacing: 2.0,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      const Text(
-                                        'SPM',
-                                        style: TextStyle(
-                                          color: AppColors.textMuted,
-                                          fontSize: 14,
-                                          letterSpacing: 1.5,
-                                        ),
-                                      ),
-                                    ],
+                                _buildDot(_currentPage == 0),
+                                const SizedBox(width: 6),
+                                _buildDot(_currentPage == 1),
+                                const SizedBox(width: 6),
+                                _buildDot(_currentPage == 2),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            MetricGraphWidget(
+                              metricIndex: _currentPage,
+                              showClockTime: _showClockTime,
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: _buildTimeToggleBtn(
+                                    'Relative',
+                                    !_showClockTime,
+                                    () =>
+                                        setState(() => _showClockTime = false),
                                   ),
                                 ),
-                                _buildCardPage(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        '${speed.toStringAsFixed(1)} km/h',
-                                        style: const TextStyle(
-                                          fontSize: 36,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.traceCalm,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'Pace: $paceStr /km',
-                                        style: const TextStyle(
-                                          color: AppColors.textMuted,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                _buildCardPage(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        '${cadenceState.strideLengthMeters.toStringAsFixed(2)} m',
-                                        style: const TextStyle(
-                                          fontSize: 36,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.traceCalm,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      ValueListenableBuilder<int>(
-                                        valueListenable: ref
-                                            .read(beatSchedulerProvider)
-                                            .beatCountNotifier,
-                                        builder: (context, beatCount, child) {
-                                          return Text(
-                                            'Beats: $beatCount',
-                                            style: const TextStyle(
-                                              color: AppColors.textMuted,
-                                              fontSize: 16,
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ],
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: _buildTimeToggleBtn(
+                                    'Clock Time',
+                                    _showClockTime,
+                                    () => setState(() => _showClockTime = true),
                                   ),
                                 ),
                               ],
                             ),
-                          ),
-                          const SizedBox(height: 24),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _buildDot(_currentPage == 0),
-                              const SizedBox(width: 6),
-                              _buildDot(_currentPage == 1),
-                              const SizedBox(width: 6),
-                              _buildDot(_currentPage == 2),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          MetricGraphWidget(
-                            metricIndex: _currentPage,
-                            showClockTime: _showClockTime,
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Expanded(
-                                child: _buildTimeToggleBtn(
-                                  'Relative',
-                                  !_showClockTime,
-                                  () => setState(() => _showClockTime = false),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _buildTimeToggleBtn(
-                                  'Clock Time',
-                                  _showClockTime,
-                                  () => setState(() => _showClockTime = true),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Center(
-                            child: GestureDetector(
-                              onTap: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    backgroundColor: AppColors.surfacePanel,
-                                    title: const Text(
-                                      'Reset Graph',
-                                      style: TextStyle(
-                                        color: AppColors.textPrimary,
-                                      ),
-                                    ),
-                                    content: const Text(
-                                      'Are you sure you want to reset the graph history?',
-                                      style: TextStyle(
-                                        color: AppColors.textMuted,
-                                      ),
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.of(ctx).pop(),
-                                        child: const Text(
-                                          'Cancel',
-                                          style: TextStyle(
-                                            color: AppColors.textMuted,
-                                          ),
+                            const SizedBox(height: 8),
+                            Center(
+                              child: GestureDetector(
+                                onTap: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      backgroundColor: AppColors.surfacePanel,
+                                      title: const Text(
+                                        'Reset Graph',
+                                        style: TextStyle(
+                                          color: AppColors.textPrimary,
                                         ),
                                       ),
-                                      TextButton(
-                                        onPressed: () {
-                                          Navigator.of(ctx).pop();
-                                          ref
-                                              .read(cadenceProvider.notifier)
-                                              .resetHistory();
-                                        },
-                                        child: const Text(
-                                          'Reset',
-                                          style: TextStyle(
-                                            color: AppColors.statusDanger,
-                                          ),
+                                      content: const Text(
+                                        'Are you sure you want to reset the graph history?',
+                                        style: TextStyle(
+                                          color: AppColors.textMuted,
                                         ),
                                       ),
-                                    ],
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.of(ctx).pop(),
+                                          child: const Text(
+                                            'Cancel',
+                                            style: TextStyle(
+                                              color: AppColors.textMuted,
+                                            ),
+                                          ),
+                                        ),
+                                        TextButton(
+                                          onPressed: () {
+                                            Navigator.of(ctx).pop();
+                                            ref
+                                                .read(cadenceProvider.notifier)
+                                                .resetHistory();
+                                          },
+                                          child: const Text(
+                                            'Reset',
+                                            style: TextStyle(
+                                              color: AppColors.statusDanger,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 5,
                                   ),
-                                );
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 5,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.surfaceRaised,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: AppColors.hairline),
-                                ),
-                                child: const Text(
-                                  'Reset Graph',
-                                  style: TextStyle(
-                                    color: AppColors.textMuted,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceRaised,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: AppColors.hairline,
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Reset Graph',
+                                    style: TextStyle(
+                                      color: AppColors.textMuted,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                          const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              Expanded(
-                                child: Center(
-                                  child: _buildStat(
-                                    'SPEED',
-                                    '${speed.toStringAsFixed(1)} km/h',
+                            const SizedBox(height: 16),
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                Expanded(
+                                  child: Center(
+                                    child: _buildStat(
+                                      'SPEED',
+                                      '${speed.toStringAsFixed(1)} km/h',
+                                    ),
                                   ),
                                 ),
-                              ),
-                              Expanded(
-                                child: Center(
-                                  child: _buildStat('PACE', '$paceStr /km'),
-                                ),
-                              ),
-                              Expanded(
-                                child: Center(
-                                  child: ValueListenableBuilder<int>(
-                                    valueListenable: ref
-                                        .read(beatSchedulerProvider)
-                                        .beatCountNotifier,
-                                    builder: (context, beatCount, child) {
-                                      return _buildStat('BEATS', '$beatCount');
-                                    },
+                                Expanded(
+                                  child: Center(
+                                    child: _buildStat('PACE', '$paceStr /km'),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          _buildModeButtons(cadenceState),
-                          const SizedBox(height: 16),
-                        ],
+                                Expanded(
+                                  child: Center(
+                                    child: ValueListenableBuilder<int>(
+                                      valueListenable: ref
+                                          .read(beatSchedulerProvider)
+                                          .beatCountNotifier,
+                                      builder: (context, beatCount, child) {
+                                        return _buildStat(
+                                          'BEATS',
+                                          '$beatCount',
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            _buildModeButtons(cadenceState),
+                            const SizedBox(height: 16),
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(width: 16),

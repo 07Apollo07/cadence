@@ -2,6 +2,8 @@ import 'package:flutter_driver/driver_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'core/storage/preferences_provider.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/app_colors.dart';
 import 'features/metronome/metronome_screen.dart';
@@ -9,10 +11,16 @@ import 'features/gps/gps_screen.dart';
 import 'features/history/history_screen.dart';
 import 'features/settings/settings_screen.dart';
 
-void main() {
-  enableFlutterDriverExtension();
+void main() async {
+  // enableFlutterDriverExtension();
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const ProviderScope(child: CadenceApp()));
+  final prefs = await SharedPreferences.getInstance();
+  runApp(
+    ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      child: const CadenceApp(),
+    ),
+  );
 }
 
 class CadenceApp extends StatelessWidget {
@@ -93,10 +101,7 @@ class _MainShellViewState extends ConsumerState<_MainShellView> {
             ),
             const SizedBox(height: 8),
             Expanded(
-              child: IndexedStack(
-                index: _currentIndex,
-                children: _screens,
-              ),
+              child: IndexedStack(index: _currentIndex, children: _screens),
             ),
           ],
         ),
@@ -108,6 +113,7 @@ class _MainShellViewState extends ConsumerState<_MainShellView> {
     final isSelected = _currentIndex == index;
     return GestureDetector(
       onTap: () {
+        // FocusManager.instance.primaryFocus?.unfocus();
         setState(() {
           _currentIndex = index;
         });
@@ -141,4 +147,3 @@ class _MainShellViewState extends ConsumerState<_MainShellView> {
     );
   }
 }
-
