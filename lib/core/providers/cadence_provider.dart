@@ -22,6 +22,77 @@ class MetricPoint {
   });
 }
 
+class CadenceHistoryState {
+  final List<MetricPoint> history;
+  final double sessionStartTimeSeconds;
+
+  const CadenceHistoryState({
+    required this.history,
+    required this.sessionStartTimeSeconds,
+  });
+
+  CadenceHistoryState copyWith({
+    List<MetricPoint>? history,
+    double? sessionStartTimeSeconds,
+  }) {
+    return CadenceHistoryState(
+      history: history ?? this.history,
+      sessionStartTimeSeconds: sessionStartTimeSeconds ?? this.sessionStartTimeSeconds,
+    );
+  }
+}
+
+class CadenceHistoryNotifier extends Notifier<CadenceHistoryState> {
+  @override
+  CadenceHistoryState build() {
+    final nowEpoch = DateTime.now().millisecondsSinceEpoch / 1000.0;
+    const defaultJog = 1.10;
+    return CadenceHistoryState(
+      history: [
+        MetricPoint(
+          timeSeconds: 0,
+          absoluteTimestamp: nowEpoch,
+          cadence: 180,
+          speed: PaceFormulas.cadenceAndStrideToSpeedKmH(180, defaultJog),
+          stride: defaultJog,
+          mode: MovementMode.jogging,
+        )
+      ],
+      sessionStartTimeSeconds: nowEpoch,
+    );
+  }
+
+  void addPoint(MetricPoint point) {
+    final updated = List<MetricPoint>.from(state.history)..add(point);
+    if (updated.length > 3600) {
+      updated.removeAt(0);
+    }
+    state = state.copyWith(history: updated);
+  }
+
+  void reset(double nowEpoch, double cadence, double stride, MovementMode mode) {
+    state = CadenceHistoryState(
+      sessionStartTimeSeconds: nowEpoch,
+      history: [
+        MetricPoint(
+          timeSeconds: 0,
+          absoluteTimestamp: nowEpoch,
+          cadence: cadence,
+          speed: PaceFormulas.cadenceAndStrideToSpeedKmH(cadence, stride),
+          stride: stride,
+          mode: mode,
+        )
+      ],
+    );
+  }
+
+  void setStartTime(double startTime) {
+    state = state.copyWith(sessionStartTimeSeconds: startTime);
+  }
+}
+
+final cadenceHistoryProvider = NotifierProvider<CadenceHistoryNotifier, CadenceHistoryState>(CadenceHistoryNotifier.new);
+
 class CadenceState {
   final int targetCadence;
   final MovementMode movementMode;
@@ -33,8 +104,9 @@ class CadenceState {
   final Color runColor;
   final double userHeightCm;
   final bool isRunning;
-  final List<MetricPoint> history;
-  final double sessionStartTimeSeconds;
+
+  final String normalAudio;
+  final String accentedAudio;
 
   const CadenceState({
     required this.targetCadence,
@@ -47,8 +119,8 @@ class CadenceState {
     required this.runColor,
     required this.userHeightCm,
     required this.isRunning,
-    required this.history,
-    required this.sessionStartTimeSeconds,
+    required this.normalAudio,
+    required this.accentedAudio,
   });
 
   double get strideLengthMeters {
@@ -95,8 +167,8 @@ class CadenceState {
     Color? runColor,
     double? userHeightCm,
     bool? isRunning,
-    List<MetricPoint>? history,
-    double? sessionStartTimeSeconds,
+    String? normalAudio,
+    String? accentedAudio,
   }) {
     return CadenceState(
       targetCadence: targetCadence ?? this.targetCadence,
@@ -109,8 +181,8 @@ class CadenceState {
       runColor: runColor ?? this.runColor,
       userHeightCm: userHeightCm ?? this.userHeightCm,
       isRunning: isRunning ?? this.isRunning,
-      history: history ?? this.history,
-      sessionStartTimeSeconds: sessionStartTimeSeconds ?? this.sessionStartTimeSeconds,
+      normalAudio: normalAudio ?? this.normalAudio,
+      accentedAudio: accentedAudio ?? this.accentedAudio,
     );
   }
 }
@@ -118,7 +190,6 @@ class CadenceState {
 class CadenceNotifier extends Notifier<CadenceState> {
   @override
   CadenceState build() {
-    final nowEpoch = DateTime.now().millisecondsSinceEpoch / 1000.0;
     const defaultWalk = 0.75;
     const defaultJog = 1.10;
     const defaultRun = 1.30;
@@ -133,28 +204,19 @@ class CadenceNotifier extends Notifier<CadenceState> {
       runColor: Colors.deepOrange,
       userHeightCm: 175.0,
       isRunning: false,
-      history: [
-        MetricPoint(
-          timeSeconds: 0,
-          absoluteTimestamp: nowEpoch,
-          cadence: 180,
-          speed: PaceFormulas.cadenceAndStrideToSpeedKmH(180, defaultJog),
-          stride: defaultJog,
-          mode: MovementMode.jogging,
-        )
-      ],
-      sessionStartTimeSeconds: nowEpoch,
+      normalAudio: 'claves44_wav.wav',
+      accentedAudio: 'woodblock_high44_wav.wav',
     );
   }
 
   void setMovementMode(MovementMode mode) {
     if (state.movementMode == mode) return;
-    if (!state.isRunning) {
-      state = state.copyWith(movementMode: mode);
-      return;
-    }
+    state = state.copyWith(movementMode: mode);
+    if (!state.isRunning) return;
+
+    final historyState = ref.read(cadenceHistoryProvider);
     final nowEpoch = DateTime.now().millisecondsSinceEpoch / 1000.0;
-    final relTime = nowEpoch - state.sessionStartTimeSeconds;
+    final relTime = nowEpoch - historyState.sessionStartTimeSeconds;
     final newStride = mode == MovementMode.walking
         ? state.walkStride
         : mode == MovementMode.jogging
@@ -171,25 +233,17 @@ class CadenceNotifier extends Notifier<CadenceState> {
       mode: mode,
     );
 
-    final updatedHistory = List<MetricPoint>.from(state.history)..add(newPoint);
-    if (updatedHistory.length > 3600) {
-      updatedHistory.removeAt(0);
-    }
-
-    state = state.copyWith(
-      movementMode: mode,
-      history: updatedHistory,
-    );
+    ref.read(cadenceHistoryProvider.notifier).addPoint(newPoint);
   }
 
   void setTargetCadence(int cadence) {
     final clamped = cadence.clamp(60, 240);
-    if (!state.isRunning) {
-      state = state.copyWith(targetCadence: clamped);
-      return;
-    }
+    state = state.copyWith(targetCadence: clamped);
+    if (!state.isRunning) return;
+
+    final historyState = ref.read(cadenceHistoryProvider);
     final nowEpoch = DateTime.now().millisecondsSinceEpoch / 1000.0;
-    final relTime = nowEpoch - state.sessionStartTimeSeconds;
+    final relTime = nowEpoch - historyState.sessionStartTimeSeconds;
     final speed = PaceFormulas.cadenceAndStrideToSpeedKmH(clamped.toDouble(), state.strideLengthMeters);
     
     final newPoint = MetricPoint(
@@ -201,15 +255,7 @@ class CadenceNotifier extends Notifier<CadenceState> {
       mode: state.movementMode,
     );
 
-    final updatedHistory = List<MetricPoint>.from(state.history)..add(newPoint);
-    if (updatedHistory.length > 3600) {
-      updatedHistory.removeAt(0);
-    }
-
-    state = state.copyWith(
-      targetCadence: clamped,
-      history: updatedHistory,
-    );
+    ref.read(cadenceHistoryProvider.notifier).addPoint(newPoint);
   }
 
   void setStrideLength(double stride) {
@@ -226,21 +272,20 @@ class CadenceNotifier extends Notifier<CadenceState> {
     if (mode == MovementMode.jogging) jog = clamped;
     if (mode == MovementMode.running) run = clamped;
 
-    if (!state.isRunning) {
-      state = state.copyWith(
-        walkStride: walk,
-        jogStride: jog,
-        runStride: run,
-      );
-      return;
-    }
+    state = state.copyWith(
+      walkStride: walk,
+      jogStride: jog,
+      runStride: run,
+    );
+    if (!state.isRunning) return;
 
     final activeStride = mode == state.movementMode
         ? clamped
         : state.strideLengthMeters;
 
+    final historyState = ref.read(cadenceHistoryProvider);
     final nowEpoch = DateTime.now().millisecondsSinceEpoch / 1000.0;
-    final relTime = nowEpoch - state.sessionStartTimeSeconds;
+    final relTime = nowEpoch - historyState.sessionStartTimeSeconds;
     final speed = PaceFormulas.cadenceAndStrideToSpeedKmH(state.targetCadence.toDouble(), activeStride);
 
     final newPoint = MetricPoint(
@@ -252,17 +297,7 @@ class CadenceNotifier extends Notifier<CadenceState> {
       mode: state.movementMode,
     );
 
-    final updatedHistory = List<MetricPoint>.from(state.history)..add(newPoint);
-    if (updatedHistory.length > 3600) {
-      updatedHistory.removeAt(0);
-    }
-
-    state = state.copyWith(
-      walkStride: walk,
-      jogStride: jog,
-      runStride: run,
-      history: updatedHistory,
-    );
+    ref.read(cadenceHistoryProvider.notifier).addPoint(newPoint);
   }
 
   void setModeColor(MovementMode mode, Color color) {
@@ -275,8 +310,8 @@ class CadenceNotifier extends Notifier<CadenceState> {
     }
   }
 
-  void setUserHeightCm(double height) {
-    state = state.copyWith(userHeightCm: height.clamp(100.0, 250.0));
+  void setAudioSelection(String normal, String accented) {
+    state = state.copyWith(normalAudio: normal, accentedAudio: accented);
   }
 
   void prefillStridesFromHeight(double heightCm) {
@@ -295,45 +330,30 @@ class CadenceNotifier extends Notifier<CadenceState> {
   void setRunning(bool running) {
     final nowEpoch = DateTime.now().millisecondsSinceEpoch / 1000.0;
     if (running && !state.isRunning) {
-      if (state.history.isNotEmpty) {
-        final lastPoint = state.history.last;
+      final historyState = ref.read(cadenceHistoryProvider);
+      if (historyState.history.isNotEmpty) {
+        final lastPoint = historyState.history.last;
         final gap = nowEpoch - lastPoint.absoluteTimestamp;
         if (gap > 1800) {
           // If paused > 30 minutes, reset history
-          state = state.copyWith(
-            isRunning: true,
-            sessionStartTimeSeconds: nowEpoch,
-            history: [
-              MetricPoint(
-                timeSeconds: 0,
-                absoluteTimestamp: nowEpoch,
-                cadence: state.targetCadence.toDouble(),
-                speed: PaceFormulas.cadenceAndStrideToSpeedKmH(state.targetCadence.toDouble(), state.strideLengthMeters),
-                stride: state.strideLengthMeters,
-                mode: state.movementMode,
-              )
-            ],
-          );
+          ref.read(cadenceHistoryProvider.notifier).reset(
+                nowEpoch,
+                state.targetCadence.toDouble(),
+                state.strideLengthMeters,
+                state.movementMode,
+              );
         } else {
           // Resumed within 30 minutes -> keep history intact (gap shown as blank)
-          state = state.copyWith(isRunning: true);
         }
       } else {
-        state = state.copyWith(
-          isRunning: true,
-          sessionStartTimeSeconds: nowEpoch,
-          history: [
-            MetricPoint(
-              timeSeconds: 0,
-              absoluteTimestamp: nowEpoch,
-              cadence: state.targetCadence.toDouble(),
-              speed: PaceFormulas.cadenceAndStrideToSpeedKmH(state.targetCadence.toDouble(), state.strideLengthMeters),
-              stride: state.strideLengthMeters,
-              mode: state.movementMode,
-            )
-          ],
-        );
+        ref.read(cadenceHistoryProvider.notifier).reset(
+              nowEpoch,
+              state.targetCadence.toDouble(),
+              state.strideLengthMeters,
+              state.movementMode,
+            );
       }
+      state = state.copyWith(isRunning: true);
     } else {
       state = state.copyWith(isRunning: running);
     }
@@ -341,14 +361,11 @@ class CadenceNotifier extends Notifier<CadenceState> {
 
   void addTickPoint() {
     if (!state.isRunning) return;
+    final historyState = ref.read(cadenceHistoryProvider);
     final nowEpoch = DateTime.now().millisecondsSinceEpoch / 1000.0;
-    final relTime = nowEpoch - state.sessionStartTimeSeconds;
+    final relTime = nowEpoch - historyState.sessionStartTimeSeconds;
     final speed = PaceFormulas.cadenceAndStrideToSpeedKmH(state.targetCadence.toDouble(), state.strideLengthMeters);
     
-    if (state.history.isNotEmpty && (nowEpoch - state.history.last.absoluteTimestamp) < 0.9) {
-      return;
-    }
-
     final newPoint = MetricPoint(
       timeSeconds: relTime < 0 ? 0 : relTime,
       absoluteTimestamp: nowEpoch,
@@ -358,28 +375,17 @@ class CadenceNotifier extends Notifier<CadenceState> {
       mode: state.movementMode,
     );
 
-    final updatedHistory = List<MetricPoint>.from(state.history)..add(newPoint);
-    if (updatedHistory.length > 3600) {
-      updatedHistory.removeAt(0);
-    }
-    state = state.copyWith(history: updatedHistory);
+    ref.read(cadenceHistoryProvider.notifier).addPoint(newPoint);
   }
 
   void resetHistory() {
     final nowEpoch = DateTime.now().millisecondsSinceEpoch / 1000.0;
-    state = state.copyWith(
-      sessionStartTimeSeconds: nowEpoch,
-      history: [
-        MetricPoint(
-          timeSeconds: 0,
-          absoluteTimestamp: nowEpoch,
-          cadence: state.targetCadence.toDouble(),
-          speed: PaceFormulas.cadenceAndStrideToSpeedKmH(state.targetCadence.toDouble(), state.strideLengthMeters),
-          stride: state.strideLengthMeters,
-          mode: state.movementMode,
-        )
-      ],
-    );
+    ref.read(cadenceHistoryProvider.notifier).reset(
+          nowEpoch,
+          state.targetCadence.toDouble(),
+          state.strideLengthMeters,
+          state.movementMode,
+        );
   }
 }
 

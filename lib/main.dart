@@ -29,14 +29,23 @@ class CadenceApp extends StatelessWidget {
   }
 }
 
-class MainShell extends ConsumerStatefulWidget {
+class MainShell extends ConsumerWidget {
   const MainShell({super.key});
 
   @override
-  ConsumerState<MainShell> createState() => _MainShellState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    return const _MainShellView();
+  }
 }
 
-class _MainShellState extends ConsumerState<MainShell> {
+class _MainShellView extends ConsumerStatefulWidget {
+  const _MainShellView();
+
+  @override
+  ConsumerState<_MainShellView> createState() => _MainShellViewState();
+}
+
+class _MainShellViewState extends ConsumerState<_MainShellView> {
   int _currentIndex = 0;
   final PageController _pageController = PageController();
 
@@ -84,13 +93,8 @@ class _MainShellState extends ConsumerState<MainShell> {
             ),
             const SizedBox(height: 8),
             Expanded(
-              child: PageView(
-                controller: _pageController,
-                onPageChanged: (index) {
-                  setState(() {
-                    _currentIndex = index;
-                  });
-                },
+              child: IndexedStack(
+                index: _currentIndex,
                 children: _screens,
               ),
             ),
@@ -107,11 +111,6 @@ class _MainShellState extends ConsumerState<MainShell> {
         setState(() {
           _currentIndex = index;
         });
-        _pageController.animateToPage(
-          index,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
         HapticFeedback.selectionClick();
       },
       child: Container(

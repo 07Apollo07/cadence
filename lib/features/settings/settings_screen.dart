@@ -251,6 +251,97 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             state.runColor,
             Colors.deepOrange,
           ),
+          const SizedBox(height: 16),
+          _buildAudioSelectionCard(state),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAudioSelectionCard(CadenceState state) {
+    final availableAudioFiles = [
+      'base44_wav.wav',
+      'claves44_wav.wav',
+      'hihat44_wav.wav',
+      'mute44_wav.wav',
+      'snare44_wav.wav',
+      'sticks44_wav.wav',
+      'woodblock_high44_wav.wav',
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surfacePanel,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.hairline),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Metronome Audio',
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Choose the sound files for normal and accented beats.',
+            style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          const Text('Normal Beat', style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceRaised,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.hairline),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: availableAudioFiles.contains(state.normalAudio) ? state.normalAudio : availableAudioFiles.first,
+                dropdownColor: AppColors.surfacePanel,
+                style: const TextStyle(color: AppColors.textPrimary),
+                isExpanded: true,
+                onChanged: (val) {
+                  if (val != null) {
+                    ref.read(cadenceProvider.notifier).setAudioSelection(val, state.accentedAudio);
+                  }
+                },
+                items: availableAudioFiles.map((f) => DropdownMenuItem(value: f, child: Text(f))).toList(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text('Accent Beat', style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceRaised,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.hairline),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: availableAudioFiles.contains(state.accentedAudio) ? state.accentedAudio : availableAudioFiles.first,
+                dropdownColor: AppColors.surfacePanel,
+                style: const TextStyle(color: AppColors.textPrimary),
+                isExpanded: true,
+                onChanged: (val) {
+                  if (val != null) {
+                    ref.read(cadenceProvider.notifier).setAudioSelection(state.normalAudio, val);
+                  }
+                },
+                items: availableAudioFiles.map((f) => DropdownMenuItem(value: f, child: Text(f))).toList(),
+              ),
+            ),
+          ),
         ],
       ),
     );

@@ -6,14 +6,14 @@ void main() {
 
   group('BeatScheduler Tests', () {
     test('initial state is stopped with default cadence 180', () {
-      final scheduler = BeatScheduler(initAudio: false);
+      final scheduler = BeatScheduler();
       expect(scheduler.isRunning, false);
       expect(scheduler.targetCadence, 180);
       expect(scheduler.beatCount, 0);
     });
 
     test('start and stop updates isRunning state', () {
-      final scheduler = BeatScheduler(initAudio: false);
+      final scheduler = BeatScheduler();
       scheduler.start();
       expect(scheduler.isRunning, true);
       scheduler.stop();
@@ -21,7 +21,7 @@ void main() {
     });
 
     test('setCadence clamps values between 60 and 240', () {
-      final scheduler = BeatScheduler(initAudio: false);
+      final scheduler = BeatScheduler();
       scheduler.setCadence(40);
       expect(scheduler.targetCadence, 60);
 
