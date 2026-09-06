@@ -3,13 +3,24 @@ import '../../core/audio/beat_scheduler.dart';
 import '../../core/providers/cadence_provider.dart';
 
 final beatSchedulerProvider = Provider<BeatScheduler>((ref) {
-  final scheduler = BeatScheduler();
-  
   // Initialize with initial audio files from cadenceProvider
   final cadenceState = ref.read(cadenceProvider);
-  scheduler.setAudioFiles(
-    'assets/audio/${cadenceState.normalAudio}',
-    'assets/audio/${cadenceState.accentedAudio}',
+  final scheduler = BeatScheduler(
+    normalPath: 'assets/audio/${cadenceState.normalAudio}',
+    accentedPath: 'assets/audio/${cadenceState.accentedAudio}',
+  );
+
+  // Reactively listen for audio selection changes in settings and hot-swap audio instantly
+  ref.listen<(String, String)>(
+    cadenceProvider.select((s) => (s.normalAudio, s.accentedAudio)),
+    (previous, next) {
+      if (previous != next) {
+        scheduler.setAudioFiles(
+          'assets/audio/${next.$1}',
+          'assets/audio/${next.$2}',
+        );
+      }
+    },
   );
 
   scheduler.beatCountNotifier.addListener(() {

@@ -27,6 +27,8 @@ class MetricGraphWidget extends ConsumerWidget {
       child: SizedBox(
         height: 140,
         child: CustomPaint(
+          isComplex: true,
+          willChange: true,
           painter: MetricGraphPainter(
             history: history,
             metricIndex: metricIndex,
@@ -58,8 +60,37 @@ class MetricGraphPainter extends CustomPainter {
   final Color jogColor;
   final Color runColor;
   final MovementMode currentMode;
-  late final Shader fillShader;
-  late final Shader lineShader;
+
+  static final Paint _gridPaint = Paint()
+    ..color = AppColors.surfaceRaised.withValues(alpha: 0.6)
+    ..strokeWidth = 1.0;
+
+  static final Paint _axisPaint = Paint()
+    ..color = AppColors.textMuted.withValues(alpha: 0.7)
+    ..strokeWidth = 1.5;
+
+  static const TextStyle _textStyle = TextStyle(
+    color: AppColors.textMuted,
+    fontSize: 9,
+  );
+
+  static final Map<String, TextPainter> _textPainterCache = {};
+
+  static TextPainter _getTextPainter(String text) {
+    return _textPainterCache.putIfAbsent(text, () {
+      final tp = TextPainter(
+        text: TextSpan(text: text, style: _textStyle),
+        textDirection: TextDirection.ltr,
+      );
+      tp.layout();
+      return tp;
+    });
+  }
+
+  late final Map<MovementMode, Paint> _strokePaints;
+  late final Map<MovementMode, Paint> _fillPaints;
+  late final Paint _currentModeFillPaint;
+  late final Paint _currentModeLinePaint;
 
   MetricGraphPainter({
     required this.history,
@@ -70,18 +101,20 @@ class MetricGraphPainter extends CustomPainter {
     required this.runColor,
     required this.currentMode,
   }) {
-    final color = _colorForMode(currentMode);
-    fillShader = LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: [color.withValues(alpha: 0.15), color.withValues(alpha: 0.0)],
-    ).createShader(const Rect.fromLTWH(0, 0, 1000, 1000)); // Large enough rect
+    _strokePaints = {
+      MovementMode.walking: _createStrokePaint(walkColor),
+      MovementMode.jogging: _createStrokePaint(jogColor),
+      MovementMode.running: _createStrokePaint(runColor),
+    };
+  }
 
-    lineShader = LinearGradient(
-      begin: Alignment.centerLeft,
-      end: Alignment.centerRight,
-      colors: [color.withValues(alpha: 0.25), color.withValues(alpha: 0.0)],
-    ).createShader(const Rect.fromLTWH(0, 0, 1000, 1000));
+  static Paint _createStrokePaint(Color color) {
+    return Paint()
+      ..color = color
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
   }
 
   Color _colorForMode(MovementMode m) {
@@ -95,6 +128,64 @@ class MetricGraphPainter extends CustomPainter {
     }
   }
 
+  void _initShaders(double width, double height) {
+    final rect = Rect.fromLTWH(0, 0, width, height);
+
+    _fillPaints = {
+      MovementMode.walking: Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            walkColor.withValues(alpha: 0.35),
+            walkColor.withValues(alpha: 0.0),
+          ],
+        ).createShader(rect),
+      MovementMode.jogging: Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            jogColor.withValues(alpha: 0.35),
+            jogColor.withValues(alpha: 0.0),
+          ],
+        ).createShader(rect),
+      MovementMode.running: Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            runColor.withValues(alpha: 0.35),
+            runColor.withValues(alpha: 0.0),
+          ],
+        ).createShader(rect),
+    };
+
+    final currentColor = _colorForMode(currentMode);
+    _currentModeFillPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          currentColor.withValues(alpha: 0.15),
+          currentColor.withValues(alpha: 0.0),
+        ],
+      ).createShader(rect);
+
+    _currentModeLinePaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+        colors: [
+          currentColor.withValues(alpha: 0.25),
+          currentColor.withValues(alpha: 0.0),
+        ],
+      ).createShader(rect)
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     const double leftMargin = 32.0;
@@ -102,13 +193,7 @@ class MetricGraphPainter extends CustomPainter {
     final graphWidth = size.width - leftMargin;
     final graphHeight = size.height - bottomMargin;
 
-    final gridPaint = Paint()
-      ..color = AppColors.surfaceRaised.withValues(alpha: 0.6)
-      ..strokeWidth = 1.0;
-
-    final axisPaint = Paint()
-      ..color = AppColors.textMuted.withValues(alpha: 0.7)
-      ..strokeWidth = 1.5;
+    _initShaders(graphWidth, graphHeight);
 
     // Draw grid lines
     const int verticalGridLines = 5;
@@ -119,20 +204,20 @@ class MetricGraphPainter extends CustomPainter {
 
     for (int i = 0; i <= verticalGridLines; i++) {
       final x = (graphWidth / verticalGridLines) * i;
-      canvas.drawLine(Offset(x, 0), Offset(x, graphHeight), gridPaint);
+      canvas.drawLine(Offset(x, 0), Offset(x, graphHeight), _gridPaint);
     }
 
     for (int j = 0; j <= horizontalGridLines; j++) {
       final y = (graphHeight / horizontalGridLines) * j;
-      canvas.drawLine(Offset(0, y), Offset(graphWidth, y), gridPaint);
+      canvas.drawLine(Offset(0, y), Offset(graphWidth, y), _gridPaint);
     }
 
     // Draw axes
-    canvas.drawLine(Offset(0, 0), Offset(0, graphHeight), axisPaint);
+    canvas.drawLine(Offset(0, 0), Offset(0, graphHeight), _axisPaint);
     canvas.drawLine(
       Offset(0, graphHeight),
       Offset(graphWidth, graphHeight),
-      axisPaint,
+      _axisPaint,
     );
     canvas.restore();
 
@@ -148,14 +233,10 @@ class MetricGraphPainter extends CustomPainter {
     }
 
     // Draw Y-axis labels
-    final textStyle = const TextStyle(color: AppColors.textMuted, fontSize: 9);
     for (int j = 0; j <= horizontalGridLines; j++) {
       final val = maxY - (maxY - minY) * (j / horizontalGridLines);
-      final tp = TextPainter(
-        text: TextSpan(text: val.toStringAsFixed(0), style: textStyle),
-        textDirection: TextDirection.ltr,
-      );
-      tp.layout();
+      final label = val.toStringAsFixed(0);
+      final tp = _getTextPainter(label);
       tp.paint(canvas, Offset(2, graphHeight * (j / horizontalGridLines) - 5));
     }
 
@@ -188,8 +269,7 @@ class MetricGraphPainter extends CustomPainter {
           final amPm = dt.hour >= 12 ? 'PM' : 'AM';
           label = '$hour:$minute $amPm';
         } else {
-          final diffSec =
-              tSec - endTime; // Time difference: negative (past) to 0 (now)
+          final diffSec = tSec - endTime;
           if (duration < 60) {
             final secsAgo = diffSec.round();
             label = secsAgo == 0 ? 'Now' : '${secsAgo}s';
@@ -199,11 +279,7 @@ class MetricGraphPainter extends CustomPainter {
           }
         }
 
-        final tp = TextPainter(
-          text: TextSpan(text: label, style: textStyle),
-          textDirection: TextDirection.ltr,
-        );
-        tp.layout();
+        final tp = _getTextPainter(label);
         final xPos = graphWidth * tFrac - (tp.width / 2);
         tp.paint(canvas, Offset(xPos, graphHeight + 4));
       }
@@ -238,7 +314,6 @@ class MetricGraphPainter extends CustomPainter {
               currentSegment.points.add(offset);
             } else {
               if (!hasGap) {
-                // Include transition point to connect lines continuously without structural gaps
                 currentSegment.points.add(offset);
               }
               segments.add(currentSegment);
@@ -253,9 +328,6 @@ class MetricGraphPainter extends CustomPainter {
         // Draw each segment optimally
         for (final seg in segments) {
           if (seg.points.length > 1) {
-            final color = _colorForMode(seg.mode);
-
-            // Path for gradient filling
             final fillPath = Path()..moveTo(seg.points.first.dx, graphHeight);
             for (final pt in seg.points) {
               fillPath.lineTo(pt.dx, pt.dy);
@@ -263,33 +335,15 @@ class MetricGraphPainter extends CustomPainter {
             fillPath.lineTo(seg.points.last.dx, graphHeight);
             fillPath.close();
 
-            final fillPaint = Paint()
-              ..shader = LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  color.withValues(alpha: 0.35),
-                  color.withValues(alpha: 0.0),
-                ],
-              ).createShader(Rect.fromLTWH(0, 0, graphWidth, graphHeight));
+            canvas.drawPath(fillPath, _fillPaints[seg.mode]!);
 
-            canvas.drawPath(fillPath, fillPaint);
-
-            // Path for line tracing
             final strokePath = Path()
               ..moveTo(seg.points.first.dx, seg.points.first.dy);
             for (int k = 1; k < seg.points.length; k++) {
               strokePath.lineTo(seg.points[k].dx, seg.points[k].dy);
             }
 
-            final strokePaint = Paint()
-              ..color = color
-              ..strokeWidth = 2.5
-              ..style = PaintingStyle.stroke
-              ..strokeCap = StrokeCap.round
-              ..strokeJoin = StrokeJoin.round;
-
-            canvas.drawPath(strokePath, strokePaint);
+            canvas.drawPath(strokePath, _strokePaints[seg.mode]!);
           } else if (seg.points.length == 1) {
             final pt = seg.points.first;
             final color = _colorForMode(seg.mode);
@@ -313,26 +367,18 @@ class MetricGraphPainter extends CustomPainter {
             graphHeight *
             (1.0 - ((val - minY) / (maxY - minY)).clamp(0.0, 1.0));
 
-        // Faded template gradient fill and sloped line
         final templatePath = Path()
           ..moveTo(x, y)
           ..lineTo(graphWidth, graphHeight)
-          ..lineTo(x, graphHeight)
-          ..close();
+          ..lineTo(x, graphHeight);
+        templatePath.close();
 
-        final templateFillPaint = Paint()..shader = fillShader;
-        canvas.drawPath(templatePath, templateFillPaint);
-
-        final templateLinePaint = Paint()
-          ..shader = lineShader
-          ..strokeWidth = 2.0
-          ..style = PaintingStyle.stroke
-          ..strokeCap = StrokeCap.round;
+        canvas.drawPath(templatePath, _currentModeFillPaint);
 
         final templateLinePath = Path()
           ..moveTo(x, y)
           ..lineTo(graphWidth, graphHeight);
-        canvas.drawPath(templateLinePath, templateLinePaint);
+        canvas.drawPath(templateLinePath, _currentModeLinePaint);
 
         final ptPaint = Paint()
           ..color = color

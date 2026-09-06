@@ -12,10 +12,18 @@ class BeatScheduler {
   bool get isRunning => isRunningNotifier.value;
   int get targetCadence => _targetCadence;
 
-  BeatScheduler() {
+  String? _currentNormalPath;
+  String? _currentAccentedPath;
+
+  BeatScheduler({
+    String normalPath = 'assets/audio/base44_wav.wav',
+    String accentedPath = 'assets/audio/claves44_wav.wav',
+  }) {
+    _currentNormalPath = normalPath;
+    _currentAccentedPath = accentedPath;
     _metronomePlugin.init(
-      'assets/audio/click_normal.mp3',
-      accentedPath: 'assets/audio/click_accent.mp3',
+      normalPath,
+      accentedPath: accentedPath,
       bpm: _targetCadence,
       volume: 50,
       enableTickCallback: true,
@@ -28,6 +36,7 @@ class BeatScheduler {
 
   void dispose() {
     stop();
+    _metronomePlugin.destroy();
     beatCountNotifier.dispose();
     isRunningNotifier.dispose();
   }
@@ -52,22 +61,15 @@ class BeatScheduler {
   }
 
   void setAudioFiles(String normalPath, String accentedPath) {
-    final wasRunning = isRunningNotifier.value;
-    if (isRunningNotifier.value) {
-      _metronomePlugin.stop();
-      isRunningNotifier.value = false;
+    if (_currentNormalPath == normalPath && _currentAccentedPath == accentedPath) {
+      return;
     }
-    _metronomePlugin.init(
-      normalPath,
+    _currentNormalPath = normalPath;
+    _currentAccentedPath = accentedPath;
+
+    _metronomePlugin.setAudioFile(
+      mainPath: normalPath,
       accentedPath: accentedPath,
-      bpm: _targetCadence,
-      volume: 50,
-      enableTickCallback: true,
-      timeSignature: 4,
     );
-    if (wasRunning) {
-      isRunningNotifier.value = true;
-      _metronomePlugin.play();
-    }
   }
 }

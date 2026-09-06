@@ -20,20 +20,6 @@ class _MetronomeScreenState extends ConsumerState<MetronomeScreen> {
   double _dragAccumulator = 0.0;
   bool _showClockTime = false;
 
-  @override
-  void initState() {
-    super.initState();
-    // Preload audio files if changed in settings
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final scheduler = ref.read(beatSchedulerProvider);
-      final cadenceState = ref.read(cadenceProvider);
-      scheduler.setAudioFiles(
-        'assets/audio/${cadenceState.normalAudio}',
-        'assets/audio/${cadenceState.accentedAudio}',
-      );
-    });
-  }
-
   void _togglePlay() {
     final scheduler = ref.read(beatSchedulerProvider);
     final cadenceState = ref.read(cadenceProvider);
