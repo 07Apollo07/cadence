@@ -504,6 +504,163 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  void _showPresetsResetModal() {
+    final state = ref.read(cadenceProvider);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surfacePanel,
+        title: const Text(
+          'Reset Cadence Presets',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Reset all walk, jog, and run preset SPM values to factory defaults.',
+                style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Proposed Changes:',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Walking:',
+                style: TextStyle(
+                  color: AppColors.traceCalm,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              ...defaultWalkPresets.entries.map((e) {
+                final cur = state.walkPresets[e.key] ?? e.value;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        e.key,
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Text(
+                        '$cur SPM ➔ ${e.value} SPM',
+                        style: const TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+              const SizedBox(height: 8),
+              const Text(
+                'Jogging:',
+                style: TextStyle(
+                  color: AppColors.traceCalm,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              ...defaultJogPresets.entries.map((e) {
+                final cur = state.jogPresets[e.key] ?? e.value;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        e.key,
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Text(
+                        '$cur SPM ➔ ${e.value} SPM',
+                        style: const TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+              const SizedBox(height: 8),
+              const Text(
+                'Running:',
+                style: TextStyle(
+                  color: AppColors.traceCalm,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              ...defaultRunPresets.entries.map((e) {
+                final cur = state.runPresets[e.key] ?? e.value;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        e.key,
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Text(
+                        '$cur SPM ➔ ${e.value} SPM',
+                        style: const TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.textMuted),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.traceCalm,
+            ),
+            onPressed: () {
+              ref.read(cadenceProvider.notifier).resetPresets();
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Cadence presets reset successfully!'),
+                ),
+              );
+            },
+            child: const Text('Reset', style: TextStyle(color: Colors.black)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(cadenceProvider);
@@ -580,10 +737,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           style: const TextStyle(color: AppColors.textPrimary),
                            onTap: () {
                               // Completely unbind any dirty focus states before demanding the keyboard
-                              FocusScope.of(context).unfocus();
+                              FocusManager.instance.primaryFocus?.unfocus();
                               Future.delayed(const Duration(milliseconds: 50), () {
                                 if (mounted) {
-                                  FocusScope.of(context).requestFocus(_heightFocusNode);
+                                  _heightFocusNode.requestFocus();
                                 }
                               });
                             },
@@ -783,9 +940,162 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ],
               ),
             ),
+            const SizedBox(height: 20),
+            // Card 4: Cadence Presets
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.surfacePanel,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.hairline),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Cadence Presets',
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.refresh, size: 20),
+                        color: AppColors.textMuted,
+                        onPressed: _showPresetsResetModal,
+                        tooltip: 'Reset cadence presets',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Customize SPM values for walking, jogging, and running presets (60–240 SPM).',
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                  ),
+                  const SizedBox(height: 20),
+                  _buildPresetCategorySection(
+                    context,
+                    ref,
+                    'Walking Presets',
+                    MovementMode.walking,
+                    state.walkPresets,
+                  ),
+                  const Divider(color: AppColors.hairline, height: 28),
+                  _buildPresetCategorySection(
+                    context,
+                    ref,
+                    'Jogging Presets',
+                    MovementMode.jogging,
+                    state.jogPresets,
+                  ),
+                  const Divider(color: AppColors.hairline, height: 28),
+                  _buildPresetCategorySection(
+                    context,
+                    ref,
+                    'Running Presets',
+                    MovementMode.running,
+                    state.runPresets,
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       );
+  }
+
+  Widget _buildPresetCategorySection(
+    BuildContext context,
+    WidgetRef ref,
+    String title,
+    MovementMode mode,
+    Map<String, int> presets,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...presets.entries.map((entry) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12.0),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    entry.key,
+                    style: const TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 3,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Slider(
+                          value: entry.value.toDouble(),
+                          min: 60,
+                          max: 240,
+                          divisions: 180,
+                          activeColor: AppColors.traceCalm,
+                          inactiveColor: AppColors.surfaceRaised,
+                          onChanged: (val) {
+                            ref
+                                .read(cadenceProvider.notifier)
+                                .setPresetCadence(
+                                  mode,
+                                  entry.key,
+                                  val.round(),
+                                );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 48,
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 4,
+                          horizontal: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceRaised,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: AppColors.hairline),
+                        ),
+                        child: Text(
+                          '${entry.value}',
+                          style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
   }
 
   Widget _buildAudioDropdown(

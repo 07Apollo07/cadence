@@ -40,7 +40,7 @@ class _MetronomeScreenState extends ConsumerState<MetronomeScreen> {
       final cadenceNotifier = ref.read(cadenceProvider.notifier);
       final currentCadence = ref.read(cadenceProvider).targetCadence;
       final step = _dragAccumulator < 0 ? 1 : -1; // Drag up increases cadence
-      final newCadence = (currentCadence + step).clamp(120, 220);
+      final newCadence = (currentCadence + step).clamp(60, 240);
       cadenceNotifier.setTargetCadence(newCadence);
       final scheduler = ref.read(beatSchedulerProvider);
       if (scheduler.isRunning) {
@@ -478,32 +478,91 @@ class _MetronomeScreenState extends ConsumerState<MetronomeScreen> {
   }
 
   Widget _buildModeButtons(CadenceState cadenceState) {
-    return Row(
+    final presets = cadenceState.presetsForMode(cadenceState.movementMode);
+    final activeColor = cadenceState.activeColor;
+
+    return Column(
       children: [
-        Expanded(
-          child: _buildModeBtn(
-            'Walk',
-            MovementMode.walking,
-            cadenceState.movementMode == MovementMode.walking,
-            cadenceState.walkColor,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: _buildModeBtn(
+                'Walk',
+                MovementMode.walking,
+                cadenceState.movementMode == MovementMode.walking,
+                cadenceState.walkColor,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _buildModeBtn(
+                'Jog',
+                MovementMode.jogging,
+                cadenceState.movementMode == MovementMode.jogging,
+                cadenceState.jogColor,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _buildModeBtn(
+                'Run',
+                MovementMode.running,
+                cadenceState.movementMode == MovementMode.running,
+                cadenceState.runColor,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _buildModeBtn(
-            'Jog',
-            MovementMode.jogging,
-            cadenceState.movementMode == MovementMode.jogging,
-            cadenceState.jogColor,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _buildModeBtn(
-            'Run',
-            MovementMode.running,
-            cadenceState.movementMode == MovementMode.running,
-            cadenceState.runColor,
+        const SizedBox(height: 10),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: presets.entries.map((entry) {
+              final isPresetActive = cadenceState.targetCadence == entry.value;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: GestureDetector(
+                  onTap: () {
+                    final notifier = ref.read(cadenceProvider.notifier);
+                    notifier.setTargetCadence(entry.value);
+                    final scheduler = ref.read(beatSchedulerProvider);
+                    if (scheduler.isRunning) {
+                      scheduler.setCadence(entry.value);
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isPresetActive
+                          ? activeColor.withValues(alpha: 0.3)
+                          : AppColors.surfaceRaised,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isPresetActive
+                            ? activeColor
+                            : AppColors.hairline,
+                        width: isPresetActive ? 1.5 : 1.0,
+                      ),
+                    ),
+                    child: Text(
+                      '${entry.key} (${entry.value})',
+                      style: TextStyle(
+                        color: isPresetActive
+                            ? activeColor
+                            : AppColors.textMuted,
+                        fontSize: 11,
+                        fontWeight: isPresetActive
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
           ),
         ),
       ],

@@ -6,6 +6,24 @@ import '../formulas/pace_formulas.dart';
 
 enum MovementMode { walking, jogging, running }
 
+const Map<String, int> defaultWalkPresets = {
+  'Casual': 100,
+  'Brisk': 118,
+  'Power': 132,
+};
+
+const Map<String, int> defaultJogPresets = {
+  'Easy': 148,
+  'Steady': 160,
+};
+
+const Map<String, int> defaultRunPresets = {
+  'Aerobic': 170,
+  'Efficient': 180,
+  'Tempo': 188,
+  'Sprint': 200,
+};
+
 class MetricPoint {
   final double timeSeconds;
   final double absoluteTimestamp;
@@ -119,6 +137,10 @@ class CadenceState {
   final String normalAudio;
   final String accentedAudio;
 
+  final Map<String, int> walkPresets;
+  final Map<String, int> jogPresets;
+  final Map<String, int> runPresets;
+
   const CadenceState({
     required this.targetCadence,
     required this.movementMode,
@@ -132,7 +154,21 @@ class CadenceState {
     required this.isRunning,
     required this.normalAudio,
     required this.accentedAudio,
+    required this.walkPresets,
+    required this.jogPresets,
+    required this.runPresets,
   });
+
+  Map<String, int> presetsForMode(MovementMode m) {
+    switch (m) {
+      case MovementMode.walking:
+        return walkPresets;
+      case MovementMode.jogging:
+        return jogPresets;
+      case MovementMode.running:
+        return runPresets;
+    }
+  }
 
   double get strideLengthMeters {
     switch (movementMode) {
@@ -180,6 +216,9 @@ class CadenceState {
     bool? isRunning,
     String? normalAudio,
     String? accentedAudio,
+    Map<String, int>? walkPresets,
+    Map<String, int>? jogPresets,
+    Map<String, int>? runPresets,
   }) {
     return CadenceState(
       targetCadence: targetCadence ?? this.targetCadence,
@@ -194,6 +233,9 @@ class CadenceState {
       isRunning: isRunning ?? this.isRunning,
       normalAudio: normalAudio ?? this.normalAudio,
       accentedAudio: accentedAudio ?? this.accentedAudio,
+      walkPresets: walkPresets ?? this.walkPresets,
+      jogPresets: jogPresets ?? this.jogPresets,
+      runPresets: runPresets ?? this.runPresets,
     );
   }
 }
@@ -210,6 +252,7 @@ class CadenceNotifier extends Notifier<CadenceState> {
   static const _kUserHeight = 'cadence_user_height';
   static const _kNormalAudio = 'cadence_normal_audio';
   static const _kAccentedAudio = 'cadence_accented_audio';
+  static const _kPresetPrefix = 'cadence_preset_';
 
   SharedPreferences? get _prefs {
     try {
@@ -251,6 +294,33 @@ class CadenceNotifier extends Notifier<CadenceState> {
     final accentedAudio =
         prefs?.getString(_kAccentedAudio) ?? 'woodblock_high44_wav.wav';
 
+    final walkPresets = <String, int>{};
+    for (final entry in defaultWalkPresets.entries) {
+      walkPresets[entry.key] =
+          prefs?.getInt(
+            '${_kPresetPrefix}walking_${entry.key.toLowerCase()}',
+          ) ??
+          entry.value;
+    }
+
+    final jogPresets = <String, int>{};
+    for (final entry in defaultJogPresets.entries) {
+      jogPresets[entry.key] =
+          prefs?.getInt(
+            '${_kPresetPrefix}jogging_${entry.key.toLowerCase()}',
+          ) ??
+          entry.value;
+    }
+
+    final runPresets = <String, int>{};
+    for (final entry in defaultRunPresets.entries) {
+      runPresets[entry.key] =
+          prefs?.getInt(
+            '${_kPresetPrefix}running_${entry.key.toLowerCase()}',
+          ) ??
+          entry.value;
+    }
+
     return CadenceState(
       targetCadence: targetCadence,
       movementMode: movementMode,
@@ -264,6 +334,9 @@ class CadenceNotifier extends Notifier<CadenceState> {
       isRunning: false,
       normalAudio: normalAudio,
       accentedAudio: accentedAudio,
+      walkPresets: walkPresets,
+      jogPresets: jogPresets,
+      runPresets: runPresets,
     );
   }
 
@@ -526,6 +599,44 @@ class CadenceNotifier extends Notifier<CadenceState> {
     state = state.copyWith(normalAudio: normal, accentedAudio: accented);
     _prefs?.setString(_kNormalAudio, normal);
     _prefs?.setString(_kAccentedAudio, accented);
+  }
+
+  void setPresetCadence(MovementMode mode, String presetName, int cadence) {
+    final clamped = cadence.clamp(60, 240);
+    final key = '$_kPresetPrefix${mode.name}_${presetName.toLowerCase()}';
+    _prefs?.setInt(key, clamped);
+
+    if (mode == MovementMode.walking) {
+      final updated = Map<String, int>.from(state.walkPresets)..[presetName] =
+          clamped;
+      state = state.copyWith(walkPresets: updated);
+    } else if (mode == MovementMode.jogging) {
+      final updated = Map<String, int>.from(state.jogPresets)..[presetName] =
+          clamped;
+      state = state.copyWith(jogPresets: updated);
+    } else if (mode == MovementMode.running) {
+      final updated = Map<String, int>.from(state.runPresets)..[presetName] =
+          clamped;
+      state = state.copyWith(runPresets: updated);
+    }
+  }
+
+  void resetPresets() {
+    for (final entry in defaultWalkPresets.entries) {
+      _prefs?.remove('${_kPresetPrefix}walking_${entry.key.toLowerCase()}');
+    }
+    for (final entry in defaultJogPresets.entries) {
+      _prefs?.remove('${_kPresetPrefix}jogging_${entry.key.toLowerCase()}');
+    }
+    for (final entry in defaultRunPresets.entries) {
+      _prefs?.remove('${_kPresetPrefix}running_${entry.key.toLowerCase()}');
+    }
+
+    state = state.copyWith(
+      walkPresets: Map<String, int>.from(defaultWalkPresets),
+      jogPresets: Map<String, int>.from(defaultJogPresets),
+      runPresets: Map<String, int>.from(defaultRunPresets),
+    );
   }
 }
 
