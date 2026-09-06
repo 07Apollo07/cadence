@@ -73,37 +73,46 @@ class _MainShellViewState extends ConsumerState<_MainShellView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surfaceBase,
-      body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 8),
-            // Top Segmented Pill Switcher (Metronome, GPS, History)
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: AppColors.surfacePanel,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: AppColors.hairline),
-              ),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildTabButton(0, 'METRONOME'),
-                    _buildTabButton(1, 'GPS'),
-                    _buildTabButton(2, 'HISTORY'),
-                    _buildTabButton(3, 'SETTINGS'),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: IndexedStack(index: _currentIndex, children: _screens),
+          ),
+          Positioned(
+            bottom: 24,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.surfacePanel.withValues(alpha: 0.95),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: AppColors.hairline),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
                   ],
+                ),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildTabButton(0, 'METRONOME'),
+                      _buildTabButton(1, 'GPS'),
+                      _buildTabButton(2, 'HISTORY'),
+                      _buildTabButton(3, 'SETTINGS'),
+                    ],
+                  ),
                 ),
               ),
             ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: IndexedStack(index: _currentIndex, children: _screens),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

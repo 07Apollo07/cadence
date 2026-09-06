@@ -38,7 +38,7 @@ class HistoryScreen extends StatelessWidget {
               ),
             )
           : ListView.builder(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 84),
               itemCount: dummyWorkouts.length,
               itemBuilder: (context, index) {
                 final workout = dummyWorkouts[index];

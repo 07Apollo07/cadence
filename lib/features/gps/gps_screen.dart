@@ -69,7 +69,7 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
           Expanded(
             flex: 2,
             child: Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 72),
               color: AppColors.surfacePanel,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,

@@ -82,7 +82,9 @@ class _MetronomeScreenState extends ConsumerState<MetronomeScreen> {
               Expanded(
                 child: Row(
                   children: [
-                    KnurledBar(onVerticalDragUpdate: _handleWheelDrag),
+                    Center(
+                      child: KnurledBar(onVerticalDragUpdate: _handleWheelDrag),
+                    ),
                     const SizedBox(width: 16),
                     Expanded(
                       child: SingleChildScrollView(
@@ -336,7 +338,9 @@ class _MetronomeScreenState extends ConsumerState<MetronomeScreen> {
                       ),
                     ),
                     const SizedBox(width: 16),
-                    KnurledBar(onVerticalDragUpdate: _handleWheelDrag),
+                    Center(
+                      child: KnurledBar(onVerticalDragUpdate: _handleWheelDrag),
+                    ),
                   ],
                 ),
               ),
@@ -387,7 +391,7 @@ class _MetronomeScreenState extends ConsumerState<MetronomeScreen> {
                   },
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 84),
             ],
           ),
         ),

@@ -676,10 +676,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     });
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 96),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+            const SizedBox(height: 36),
             const Text(
               'SETTINGS',
               style: TextStyle(
