@@ -1,7 +1,7 @@
 # Project Roadmap & To-Do List
 
 ## 1. Pending Verification
-- [ ] **SharedPreferences Testing**: Verify cold-start persistence on device/emulator for all settings (target cadence, mode, strides, colors, user height, audio tracks).
+- [x] **SharedPreferences Testing**: Verify cold-start persistence on device/emulator for all settings (target cadence, mode, strides, colors, user height, audio tracks).
 
 ---
 
@@ -37,13 +37,40 @@ Allow quick jumping to specific cadence intensities (SPM) with a single tap, whi
 ---
 
 ## 3. Knurled Wheel Refinements & UI Enhancements
-- [ ] Visual styling improvements and texture enhancements on the knurled drag bar.
-- [ ] Enhanced haptics / tactile feedback during dragging and preset snapping.
-- [ ] Smooth inertia / friction calibration and visual indicators for delta adjustments.
+- [x] Visual styling improvements and texture enhancements on the knurled drag bar.
+- [x] Enhanced haptics / tactile feedback during dragging and preset snapping.
+- [x] Smooth inertia / friction calibration and visual indicators for delta adjustments.
 
 ---
 
 ## 4. GPS & Live Tracking
-- [ ] Make GPS tracking fully functional (convert current mockup UI to real live position updates).
-- [ ] Integrate background geolocation stream with live speed/pace vs metronome target comparisons.
-- [ ] Route mapping and session recording integration.
+- [x] Make GPS tracking fully functional (convert current mockup UI to real live position updates).
+- [x] Integrate background geolocation stream with live speed/pace vs metronome target comparisons.
+- [x] Route mapping and session recording integration.
+
+---
+
+## 5. Advanced Background Execution, Notifications & Granular Controls
+- [ ] **Granular GPS Session Controls**: Separate Start, Pause, and Stop buttons (replacing the combined pause-as-stop behavior).
+- [ ] **Background Foreground Services**: Implement native foreground services for both GPS tracking and Metronome to prevent OS suspension when app is minimized or locked.
+- [ ] **Interactive Notification Bar Controls**:
+  - Media/run playback controls (Play/Pause/Stop) directly in the notification tray for both Metronome and GPS.
+  - **Smart Dismissal**: Notifications persist (sticky) while either session is active, and become dismissible (swipable) only once both sessions have ended.
+
+1. GPS Controls: Start, Pause, & Stop
+Currently, we have a toggle between Start and Pause (which acts as stop/pause). Separating them into three distinct controls gives you full workout management:
+
+Start: Begins a fresh GPS tracking session.
+Pause: Temporarily pauses recording (ignoring stationary jitter or movement while taking a break at a stoplight).
+Stop: Finalizes and saves the run session to history, clearing the active route.
+2. Background Execution (Foreground Services)
+By default, mobile operating systems (iOS and Android) put apps to sleep or suspend location/audio streams when minimized or locked.
+
+The Solution: We need a Foreground Service with a persistent notification (e.g., using packages like flutter_foreground_task or platform native services).
+How it keeps running: A foreground service runs with an ongoing notification icon in the status bar, telling the OS: "This app is actively running an exercise session / metronome beat in the background, do not kill it."
+3. Notification Bar Controls (Interactive Media/Run Notification)
+Metronome Control: Play/Pause buttons right in the notification tray to control your tempo without unlocking your phone.
+GPS Run Control: Pause/Resume/Stop buttons in the notification tray.
+Smart Dismissal:
+While either the Metronome or GPS is active, the notification persists and cannot be accidentally swiped away.
+Once both sessions are fully stopped/ended, the notification releases its sticky flag so you (or the OS) can slide it away.
