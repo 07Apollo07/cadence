@@ -5,8 +5,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/storage/preferences_provider.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/app_colors.dart';
+import 'core/services/notification_service.dart';
 import 'features/metronome/metronome_screen.dart';
+import 'features/metronome/beat_scheduler_provider.dart';
 import 'features/gps/gps_screen.dart';
+import 'features/gps/gps_controller.dart';
 import 'features/history/history_screen.dart';
 import 'features/settings/settings_screen.dart';
 
@@ -62,6 +65,29 @@ class _MainShellViewState extends ConsumerState<_MainShellView> {
     HistoryScreen(),
     SettingsScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    NotificationService().initialize().then((_) {
+      NotificationService().onActionReceived = (actionId) {
+        switch (actionId) {
+          case 'gps_pause':
+            ref.read(gpsControllerProvider.notifier).pauseTracking();
+            break;
+          case 'gps_resume':
+            ref.read(gpsControllerProvider.notifier).resumeTracking();
+            break;
+          case 'gps_stop':
+            ref.read(gpsControllerProvider.notifier).stopTracking();
+            break;
+          case 'metronome_stop':
+            ref.read(beatSchedulerProvider).stop();
+            break;
+        }
+      };
+    });
+  }
 
   @override
   void dispose() {

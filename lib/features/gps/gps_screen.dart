@@ -226,25 +226,97 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   const TargetActualPanel(),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      final controller = ref.read(gpsControllerProvider.notifier);
-                      if (gpsState.isTracking) {
-                        controller.stopTracking();
-                      } else {
-                        controller.startTracking();
-                      }
-                    },
-                    icon: Icon(gpsState.isTracking ? Icons.pause : Icons.play_arrow),
-                    label: Text(gpsState.isTracking ? 'PAUSE GPS RUN' : 'START GPS RUN'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: gpsState.isTracking ? AppColors.statusDanger : cadenceState.activeColor,
-                      foregroundColor: Colors.black,
-                      minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                  if (gpsState.isIdle)
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        ref.read(gpsControllerProvider.notifier).startTracking();
+                      },
+                      icon: const Icon(Icons.play_arrow),
+                      label: const Text('START GPS RUN'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: cadenceState.activeColor,
+                        foregroundColor: Colors.black,
+                        minimumSize: const Size(double.infinity, 50),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    )
+                  else if (gpsState.isTracking)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              ref.read(gpsControllerProvider.notifier).pauseTracking();
+                            },
+                            icon: const Icon(Icons.pause),
+                            label: const Text('PAUSE'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange,
+                              foregroundColor: Colors.black,
+                              minimumSize: const Size(0, 50),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              ref.read(gpsControllerProvider.notifier).stopTracking();
+                            },
+                            icon: const Icon(Icons.stop),
+                            label: const Text('STOP'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.statusDanger,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size(0, 50),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  else if (gpsState.isPaused)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              ref.read(gpsControllerProvider.notifier).resumeTracking();
+                            },
+                            icon: const Icon(Icons.play_arrow),
+                            label: const Text('RESUME'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: cadenceState.activeColor,
+                              foregroundColor: Colors.black,
+                              minimumSize: const Size(0, 50),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              ref.read(gpsControllerProvider.notifier).stopTracking();
+                            },
+                            icon: const Icon(Icons.stop),
+                            label: const Text('STOP'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.statusDanger,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size(0, 50),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
                 ],
               ),
             ),

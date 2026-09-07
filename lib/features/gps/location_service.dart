@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
 class PositionData {
@@ -49,10 +50,32 @@ class GeolocatorLocationService implements LocationService {
 
   @override
   Stream<PositionData> getPositionStream() {
-    const LocationSettings locationSettings = LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 1,
-    );
+    final LocationSettings locationSettings;
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      locationSettings = AndroidSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 1,
+        intervalDuration: const Duration(seconds: 1),
+        foregroundNotificationConfig: const ForegroundNotificationConfig(
+          notificationTitle: "Cadence Location Service",
+          notificationText: "Location tracking active for background run measurement",
+          enableWifiLock: true,
+        ),
+      );
+    } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+      locationSettings = AppleSettings(
+        accuracy: LocationAccuracy.high,
+        activityType: ActivityType.fitness,
+        distanceFilter: 1,
+        pauseLocationUpdatesAutomatically: false,
+        showBackgroundLocationIndicator: true,
+      );
+    } else {
+      locationSettings = LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 1,
+      );
+    }
 
     return Geolocator.getPositionStream(locationSettings: locationSettings).map((Position pos) {
       return PositionData(

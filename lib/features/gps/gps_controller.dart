@@ -6,9 +6,16 @@ import 'gps_point_filter.dart';
 import 'route_aggregator.dart';
 import 'actual_cadence_calculator.dart';
 import '../../core/providers/cadence_provider.dart';
+import '../../core/services/notification_service.dart';
+
+enum GpsStatus {
+  idle,
+  tracking,
+  paused,
+}
 
 class GpsSessionState {
-  final bool isTracking;
+  final GpsStatus status;
   final double distanceKm;
   final double currentSpeedKmH;
   final double actualCadenceSpm;
@@ -18,7 +25,7 @@ class GpsSessionState {
   final String? errorMessage;
 
   const GpsSessionState({
-    required this.isTracking,
+    required this.status,
     required this.distanceKm,
     required this.currentSpeedKmH,
     required this.actualCadenceSpm,
@@ -28,8 +35,13 @@ class GpsSessionState {
     this.errorMessage,
   });
 
+  bool get isTracking => status == GpsStatus.tracking;
+  bool get isPaused => status == GpsStatus.paused;
+  bool get isIdle => status == GpsStatus.idle;
+  bool get isSessionActive => status != GpsStatus.idle;
+
   GpsSessionState copyWith({
-    bool? isTracking,
+    GpsStatus? status,
     double? distanceKm,
     double? currentSpeedKmH,
     double? actualCadenceSpm,
@@ -39,7 +51,7 @@ class GpsSessionState {
     String? errorMessage,
   }) {
     return GpsSessionState(
-      isTracking: isTracking ?? this.isTracking,
+      status: status ?? this.status,
       distanceKm: distanceKm ?? this.distanceKm,
       currentSpeedKmH: currentSpeedKmH ?? this.currentSpeedKmH,
       actualCadenceSpm: actualCadenceSpm ?? this.actualCadenceSpm,
@@ -63,7 +75,7 @@ class GpsController extends Notifier<GpsSessionState> {
   @override
   GpsSessionState build() {
     return const GpsSessionState(
-      isTracking: false,
+      status: GpsStatus.idle,
       distanceKm: 0.0,
       currentSpeedKmH: 0.0,
       actualCadenceSpm: 0.0,
@@ -83,7 +95,7 @@ class GpsController extends Notifier<GpsSessionState> {
     _aggregator.reset();
 
     state = state.copyWith(
-      isTracking: true,
+      status: GpsStatus.tracking,
       distanceKm: 0.0,
       currentSpeedKmH: 0.0,
       actualCadenceSpm: 0.0,
@@ -91,6 +103,31 @@ class GpsController extends Notifier<GpsSessionState> {
       errorMessage: null,
     );
 
+    _startListening(locationService);
+    _syncNotification();
+  }
+
+  Future<void> resumeTracking() async {
+    if (state.status != GpsStatus.paused) return;
+
+    final locationService = ref.read(locationServiceProvider);
+    final hasPermission = await locationService.checkAndRequestPermission();
+    if (!hasPermission) {
+      state = state.copyWith(errorMessage: 'Location permission denied or GPS disabled.');
+      return;
+    }
+
+    state = state.copyWith(
+      status: GpsStatus.tracking,
+      errorMessage: null,
+    );
+
+    _startListening(locationService);
+    _syncNotification();
+  }
+
+  void _startListening(LocationService locationService) {
+    _positionSubscription?.cancel();
     _positionSubscription = locationService.getPositionStream().listen((pos) {
       final filtered = _filter.filter(
         latitude: pos.latitude,
@@ -127,15 +164,34 @@ class GpsController extends Notifier<GpsSessionState> {
           hasReceivedAnyFix: true,
         );
       }
+      _syncNotification();
     }, onError: (e) {
       state = state.copyWith(errorMessage: e.toString());
+      _syncNotification();
     });
+  }
+
+  void pauseTracking() {
+    _positionSubscription?.cancel();
+    _positionSubscription = null;
+    state = state.copyWith(status: GpsStatus.paused);
+    _syncNotification();
   }
 
   void stopTracking() {
     _positionSubscription?.cancel();
     _positionSubscription = null;
-    state = state.copyWith(isTracking: false);
+    state = state.copyWith(status: GpsStatus.idle);
+    _syncNotification();
+  }
+
+  void _syncNotification() {
+    NotificationService().updateGpsNotification(
+      isTracking: state.isTracking,
+      isPaused: state.isPaused,
+      distanceKm: state.distanceKm,
+      speedKmH: state.currentSpeedKmH,
+    );
   }
 }
 

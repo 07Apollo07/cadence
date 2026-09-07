@@ -1,5 +1,7 @@
+import 'package:audio_session/audio_session.dart';
 import 'package:flutter/foundation.dart';
 import 'package:metronome/metronome.dart';
+import '../services/notification_service.dart';
 
 class BeatScheduler {
   final _metronomePlugin = Metronome();
@@ -45,19 +47,45 @@ class BeatScheduler {
     _targetCadence = cadence.clamp(60, 240);
     if (isRunningNotifier.value) {
       _metronomePlugin.setBPM(_targetCadence);
+      NotificationService().updateMetronomeNotification(
+        isRunning: true,
+        cadence: _targetCadence,
+      );
     }
   }
 
-  void start() {
+  Future<void> start() async {
     if (isRunningNotifier.value) return;
     isRunningNotifier.value = true;
     beatCountNotifier.value = 0;
     _metronomePlugin.play();
+    NotificationService().updateMetronomeNotification(
+      isRunning: true,
+      cadence: _targetCadence,
+    );
+
+    try {
+      final session = await AudioSession.instance;
+      await session.configure(const AudioSessionConfiguration.music());
+      await session.setActive(true);
+    } catch (e) {
+      debugPrint('AudioSession configuration failed: $e');
+    }
   }
 
-  void stop() {
+  Future<void> stop() async {
     isRunningNotifier.value = false;
     _metronomePlugin.stop();
+    NotificationService().updateMetronomeNotification(
+      isRunning: false,
+      cadence: _targetCadence,
+    );
+    try {
+      final session = await AudioSession.instance;
+      await session.setActive(false);
+    } catch (e) {
+      debugPrint('AudioSession deactivate failed: $e');
+    }
   }
 
   void setAudioFiles(String normalPath, String accentedPath) {

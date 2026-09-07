@@ -18,7 +18,10 @@ class TargetActualPanel extends ConsumerWidget {
 
     Color deltaColor = AppColors.textPrimary;
     String deltaText = 'On Target';
-    if (actual > 0) {
+    if (gpsState.isPaused) {
+      deltaText = 'Session Paused';
+      deltaColor = Colors.orange;
+    } else if (actual > 0) {
       if (delta > 2) {
         deltaText = '+${delta.toStringAsFixed(0)} SPM (Fast)';
         deltaColor = AppColors.traceHot;
@@ -30,7 +33,7 @@ class TargetActualPanel extends ConsumerWidget {
         deltaColor = AppColors.traceCalm;
       }
     } else {
-      if (!gpsState.isTracking) {
+      if (!gpsState.isSessionActive) {
         deltaText = 'Ready';
         deltaColor = AppColors.textMuted;
       } else if (!gpsState.hasReceivedAnyFix) {
