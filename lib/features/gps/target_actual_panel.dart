@@ -7,6 +7,16 @@ import 'gps_controller.dart';
 class TargetActualPanel extends ConsumerWidget {
   const TargetActualPanel({super.key});
 
+  String _formatDuration(Duration d) {
+    final hours = d.inHours;
+    final minutes = d.inMinutes.remainder(60);
+    final seconds = d.inSeconds.remainder(60);
+    if (hours > 0) {
+      return '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    }
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cadenceState = ref.watch(cadenceProvider);
@@ -72,19 +82,48 @@ class TargetActualPanel extends ConsumerWidget {
               _buildMetricColumn('Distance', gpsState.distanceKm.toStringAsFixed(2), 'km', AppColors.textPrimary),
             ],
           ),
-          const SizedBox(height: 12),
+          if (gpsState.isSessionActive) ...[
+            const SizedBox(height: 12),
+            Divider(color: AppColors.hairline, height: 1),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildTimeColumn('Moving', _formatDuration(gpsState.movingDuration), AppColors.textPrimary),
+                Container(width: 1, height: 28, color: AppColors.hairline),
+                _buildTimeColumn(
+                  'Idle',
+                  _formatDuration(gpsState.idleDuration),
+                  gpsState.idleDuration.inSeconds > 0 ? AppColors.textPrimary : AppColors.textMuted,
+                ),
+                Container(width: 1, height: 28, color: AppColors.hairline),
+                _buildTimeColumn(
+                  'Pause',
+                  _formatDuration(gpsState.pauseDuration),
+                  gpsState.pauseDuration.inSeconds > 0 ? Colors.orange : AppColors.textMuted,
+                ),
+                Container(width: 1, height: 28, color: AppColors.hairline),
+                _buildTimeColumn(
+                  'Pace',
+                  gpsState.currentSpeedKmH > 0 ? '${(60.0 / gpsState.currentSpeedKmH).toStringAsFixed(1)} min/km' : '--',
+                  AppColors.textPrimary,
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 10),
           Divider(color: AppColors.hairline, height: 1),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Pace: ${gpsState.currentSpeedKmH > 0 ? (60.0 / gpsState.currentSpeedKmH).toStringAsFixed(1) : '--'} min/km',
-                style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                gpsState.isSessionActive ? 'Total: ${_formatDuration(gpsState.totalDuration)}' : 'GPS Outdoor Mode',
+                style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
               ),
               Text(
                 deltaText,
-                style: TextStyle(color: deltaColor, fontWeight: FontWeight.bold, fontSize: 13),
+                style: TextStyle(color: deltaColor, fontWeight: FontWeight.bold, fontSize: 12),
               ),
             ],
           ),
@@ -98,6 +137,16 @@ class TargetActualPanel extends ConsumerWidget {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildTimeColumn(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+        const SizedBox(height: 2),
+        Text(value, style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.w600)),
+      ],
     );
   }
 

@@ -9,7 +9,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:drift/native.dart';
 import 'package:cadence/core/storage/preferences_provider.dart';
+import 'package:cadence/core/storage/app_database.dart';
+import 'package:cadence/features/history/repositories/gps_session_repository.dart';
 
 import 'package:cadence/main.dart';
 
@@ -22,15 +25,25 @@ void main() {
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.resetPhysicalSize);
 
+    final db = AppDatabase(NativeDatabase.memory());
+    addTearDown(() => db.close());
+
     // Build our app and trigger a frame.
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          appDatabaseProvider.overrideWithValue(db),
+        ],
         child: const CadenceApp(),
       ),
     );
 
     // Verify that Metronome tab is displayed by default.
     expect(find.text('METRONOME'), findsOneWidget);
+
+    // Unmount app widget to trigger disposal and pending timers
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(milliseconds: 100));
   });
 }

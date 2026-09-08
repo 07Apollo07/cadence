@@ -30,5 +30,29 @@ void main() {
       expect(aggregator.totalDistanceKm, lessThan(0.15));
       expect(aggregator.currentSpeedKmH, closeTo(3.33 * 3.6, 0.1));
     });
+
+    test('calculates moving, idle, and pause durations correctly', () {
+      final aggregator = RouteAggregator();
+      final startTime = DateTime(2026, 9, 7, 10, 0, 0);
+      aggregator.startSession(startTime);
+
+      // First point at start
+      aggregator.addPoint(FilteredPoint(
+        position: const LatLng(37.7749, -122.4194),
+        accuracyMeters: 5.0,
+        timestamp: startTime,
+      ));
+
+      // Second point 20 seconds later
+      aggregator.addPoint(FilteredPoint(
+        position: const LatLng(37.7758, -122.4194),
+        accuracyMeters: 5.0,
+        timestamp: startTime.add(const Duration(seconds: 20)),
+      ));
+
+      expect(aggregator.movingDuration, const Duration(seconds: 20));
+      expect(aggregator.pauseDuration, Duration.zero);
+      expect(aggregator.elapsedDuration > Duration.zero, isTrue);
+    });
   });
 }

@@ -214,25 +214,50 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
                     ],
                   ),
                 ),
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfacePanel.withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: AppColors.hairline),
+                    ),
+                    child: const Text(
+                      '© OpenStreetMap contributors',
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 10),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: _buildGpsSignalBadge(gpsState),
+                ),
               ],
             ),
           ),
           Expanded(
             flex: 2,
-            child: Container(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 72),
-              color: AppColors.surfacePanel,
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   const TargetActualPanel(),
-                  if (gpsState.isIdle)
+                  const SizedBox(height: 12),
+                  if (gpsState.isIdle) ...[
+                    if (gpsState.recentResumableSession != null) ...[
+                      _buildResumableRunBanner(gpsState.recentResumableSession!),
+                      const SizedBox(height: 10),
+                    ],
                     ElevatedButton.icon(
                       onPressed: () {
                         ref.read(gpsControllerProvider.notifier).startTracking();
                       },
                       icon: const Icon(Icons.play_arrow),
-                      label: const Text('START GPS RUN'),
+                      label: Text(gpsState.recentResumableSession != null ? 'START NEW GPS RUN' : 'START GPS RUN'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: cadenceState.activeColor,
                         foregroundColor: Colors.black,
@@ -240,8 +265,8 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         textStyle: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                    )
-                  else if (gpsState.isTracking)
+                    ),
+                  ] else if (gpsState.isTracking)
                     Row(
                       children: [
                         Expanded(
@@ -320,6 +345,117 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
                 ],
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResumableRunBanner(dynamic session) {
+    final diff = DateTime.now().difference(session.startTime);
+    final hoursAgo = diff.inHours > 0 ? '${diff.inHours}h ago' : '${diff.inMinutes}m ago';
+    final dist = session.distanceKm.toStringAsFixed(2);
+    final movingMin = (session.movingDurationSeconds / 60).floor();
+    final movingSec = (session.movingDurationSeconds % 60);
+    final timeStr = '${movingMin}m ${movingSec}s';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceRaised,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.amber.withValues(alpha: 0.6)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.history, color: Colors.amber, size: 28),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Recent Run Found ($hoursAgo)',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                Text(
+                  '$dist km • $timeStr moving',
+                  style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              ref.read(gpsControllerProvider.notifier).resumePreviousSession(session);
+            },
+            style: TextButton.styleFrom(
+              backgroundColor: Colors.amber,
+              foregroundColor: Colors.black,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('CONTINUE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 18, color: AppColors.textMuted),
+            onPressed: () {
+              ref.read(gpsControllerProvider.notifier).dismissResumableBanner();
+            },
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGpsSignalBadge(dynamic gpsState) {
+    final hasFix = gpsState.hasReceivedAnyFix && gpsState.lastRawAccuracy != null;
+    final accuracy = gpsState.lastRawAccuracy ?? 0.0;
+
+    Color badgeColor;
+    String label;
+    IconData iconData;
+
+    if (!hasFix) {
+      badgeColor = Colors.orange;
+      label = 'Acquiring GPS...';
+      iconData = Icons.location_searching;
+    } else if (accuracy <= 5.0) {
+      badgeColor = const Color(0xFF30A46C);
+      label = 'GPS: ±${accuracy.toStringAsFixed(1)}m (High)';
+      iconData = Icons.gps_fixed;
+    } else if (accuracy <= 15.0) {
+      badgeColor = Colors.lightGreen;
+      label = 'GPS: ±${accuracy.toStringAsFixed(1)}m (Good)';
+      iconData = Icons.gps_fixed;
+    } else if (accuracy <= 30.0) {
+      badgeColor = Colors.amber;
+      label = 'GPS: ±${accuracy.toStringAsFixed(1)}m (Fair)';
+      iconData = Icons.gps_not_fixed;
+    } else {
+      badgeColor = AppColors.statusDanger;
+      label = 'GPS: ±${accuracy.toStringAsFixed(1)}m (Poor)';
+      iconData = Icons.signal_cellular_connected_no_internet_4_bar;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.surfacePanel.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: badgeColor.withValues(alpha: 0.6)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(iconData, size: 14, color: badgeColor),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(color: badgeColor, fontSize: 11, fontWeight: FontWeight.bold),
           ),
         ],
       ),

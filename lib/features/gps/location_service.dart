@@ -19,7 +19,7 @@ class PositionData {
 
 abstract class LocationService {
   Future<bool> checkAndRequestPermission();
-  Stream<PositionData> getPositionStream();
+  Stream<PositionData> getPositionStream({bool isTracking = false});
 }
 
 class GeolocatorLocationService implements LocationService {
@@ -49,56 +49,65 @@ class GeolocatorLocationService implements LocationService {
   }
 
   @override
-  Stream<PositionData> getPositionStream() {
+  Stream<PositionData> getPositionStream({bool isTracking = false}) {
     final LocationSettings locationSettings;
+    final int distanceFilter = isTracking ? 1 : 5;
+    final Duration intervalDuration = isTracking
+        ? const Duration(seconds: 1)
+        : const Duration(seconds: 5);
+    final LocationAccuracy accuracy = LocationAccuracy.high;
+
     if (defaultTargetPlatform == TargetPlatform.android) {
       locationSettings = AndroidSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 1,
-        intervalDuration: const Duration(seconds: 1),
+        accuracy: accuracy,
+        distanceFilter: distanceFilter,
+        intervalDuration: intervalDuration,
         foregroundNotificationConfig: const ForegroundNotificationConfig(
           notificationTitle: "Cadence Location Service",
-          notificationText: "Location tracking active for background run measurement",
+          notificationText:
+              "Location tracking active for background run measurement",
           enableWifiLock: true,
         ),
       );
     } else if (defaultTargetPlatform == TargetPlatform.iOS) {
       locationSettings = AppleSettings(
-        accuracy: LocationAccuracy.high,
+        accuracy: accuracy,
         activityType: ActivityType.fitness,
-        distanceFilter: 1,
+        distanceFilter: distanceFilter,
         pauseLocationUpdatesAutomatically: false,
         showBackgroundLocationIndicator: true,
       );
     } else {
       locationSettings = LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 1,
+        accuracy: accuracy,
+        distanceFilter: distanceFilter,
       );
     }
 
-    return Geolocator.getPositionStream(locationSettings: locationSettings).map((Position pos) {
-      return PositionData(
-        latitude: pos.latitude,
-        longitude: pos.longitude,
-        accuracy: pos.accuracy,
-        timestamp: pos.timestamp,
-        speed: pos.speed,
-      );
-    });
+    return Geolocator.getPositionStream(locationSettings: locationSettings).map(
+      (Position pos) {
+        return PositionData(
+          latitude: pos.latitude,
+          longitude: pos.longitude,
+          accuracy: pos.accuracy,
+          timestamp: pos.timestamp,
+          speed: pos.speed,
+        );
+      },
+    );
   }
 }
 
 class FakeLocationService implements LocationService {
   final List<PositionData> _mockFixes;
-  
+
   FakeLocationService(this._mockFixes);
 
   @override
   Future<bool> checkAndRequestPermission() async => true;
 
   @override
-  Stream<PositionData> getPositionStream() async* {
+  Stream<PositionData> getPositionStream({bool isTracking = false}) async* {
     for (final fix in _mockFixes) {
       await Future.delayed(const Duration(milliseconds: 100));
       yield fix;

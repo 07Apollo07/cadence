@@ -51,7 +51,8 @@ class $WorkoutSessionsTable extends WorkoutSessions
     aliasedName,
     false,
     type: DriftSqlType.string,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('gps'),
   );
   static const VerificationMeta _targetCadenceMeta = const VerificationMeta(
     'targetCadence',
@@ -62,7 +63,8 @@ class $WorkoutSessionsTable extends WorkoutSessions
     aliasedName,
     false,
     type: DriftSqlType.double,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
   );
   static const VerificationMeta _avgCadenceMeta = const VerificationMeta(
     'avgCadence',
@@ -70,6 +72,18 @@ class $WorkoutSessionsTable extends WorkoutSessions
   @override
   late final GeneratedColumn<double> avgCadence = GeneratedColumn<double>(
     'avg_cadence',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
+  static const VerificationMeta _maxCadenceMeta = const VerificationMeta(
+    'maxCadence',
+  );
+  @override
+  late final GeneratedColumn<double> maxCadence = GeneratedColumn<double>(
+    'max_cadence',
     aliasedName,
     false,
     type: DriftSqlType.double,
@@ -100,12 +114,91 @@ class $WorkoutSessionsTable extends WorkoutSessions
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _movingDurationSecondsMeta =
+      const VerificationMeta('movingDurationSeconds');
+  @override
+  late final GeneratedColumn<int> movingDurationSeconds = GeneratedColumn<int>(
+    'moving_duration_seconds',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _pauseDurationSecondsMeta =
+      const VerificationMeta('pauseDurationSeconds');
+  @override
+  late final GeneratedColumn<int> pauseDurationSeconds = GeneratedColumn<int>(
+    'pause_duration_seconds',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _avgPaceMinPerKmMeta = const VerificationMeta(
+    'avgPaceMinPerKm',
+  );
+  @override
+  late final GeneratedColumn<double> avgPaceMinPerKm = GeneratedColumn<double>(
+    'avg_pace_min_per_km',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _bestPaceMinPerKmMeta = const VerificationMeta(
+    'bestPaceMinPerKm',
+  );
+  @override
+  late final GeneratedColumn<double> bestPaceMinPerKm = GeneratedColumn<double>(
+    'best_pace_min_per_km',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _estimatedCaloriesMeta = const VerificationMeta(
+    'estimatedCalories',
+  );
+  @override
+  late final GeneratedColumn<int> estimatedCalories = GeneratedColumn<int>(
+    'estimated_calories',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _estimatedStepsMeta = const VerificationMeta(
+    'estimatedSteps',
+  );
+  @override
+  late final GeneratedColumn<int> estimatedSteps = GeneratedColumn<int>(
+    'estimated_steps',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _routePointsJsonMeta = const VerificationMeta(
     'routePointsJson',
   );
   @override
   late final GeneratedColumn<String> routePointsJson = GeneratedColumn<String>(
     'route_points_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _splitsJsonMeta = const VerificationMeta(
+    'splitsJson',
+  );
+  @override
+  late final GeneratedColumn<String> splitsJson = GeneratedColumn<String>(
+    'splits_json',
     aliasedName,
     true,
     type: DriftSqlType.string,
@@ -119,9 +212,17 @@ class $WorkoutSessionsTable extends WorkoutSessions
     mode,
     targetCadence,
     avgCadence,
+    maxCadence,
     distanceKm,
     durationSeconds,
+    movingDurationSeconds,
+    pauseDurationSeconds,
+    avgPaceMinPerKm,
+    bestPaceMinPerKm,
+    estimatedCalories,
+    estimatedSteps,
     routePointsJson,
+    splitsJson,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -157,8 +258,6 @@ class $WorkoutSessionsTable extends WorkoutSessions
         _modeMeta,
         mode.isAcceptableOrUnknown(data['mode']!, _modeMeta),
       );
-    } else if (isInserting) {
-      context.missing(_modeMeta);
     }
     if (data.containsKey('target_cadence')) {
       context.handle(
@@ -168,13 +267,17 @@ class $WorkoutSessionsTable extends WorkoutSessions
           _targetCadenceMeta,
         ),
       );
-    } else if (isInserting) {
-      context.missing(_targetCadenceMeta);
     }
     if (data.containsKey('avg_cadence')) {
       context.handle(
         _avgCadenceMeta,
         avgCadence.isAcceptableOrUnknown(data['avg_cadence']!, _avgCadenceMeta),
+      );
+    }
+    if (data.containsKey('max_cadence')) {
+      context.handle(
+        _maxCadenceMeta,
+        maxCadence.isAcceptableOrUnknown(data['max_cadence']!, _maxCadenceMeta),
       );
     }
     if (data.containsKey('distance_km')) {
@@ -192,6 +295,60 @@ class $WorkoutSessionsTable extends WorkoutSessions
         ),
       );
     }
+    if (data.containsKey('moving_duration_seconds')) {
+      context.handle(
+        _movingDurationSecondsMeta,
+        movingDurationSeconds.isAcceptableOrUnknown(
+          data['moving_duration_seconds']!,
+          _movingDurationSecondsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('pause_duration_seconds')) {
+      context.handle(
+        _pauseDurationSecondsMeta,
+        pauseDurationSeconds.isAcceptableOrUnknown(
+          data['pause_duration_seconds']!,
+          _pauseDurationSecondsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('avg_pace_min_per_km')) {
+      context.handle(
+        _avgPaceMinPerKmMeta,
+        avgPaceMinPerKm.isAcceptableOrUnknown(
+          data['avg_pace_min_per_km']!,
+          _avgPaceMinPerKmMeta,
+        ),
+      );
+    }
+    if (data.containsKey('best_pace_min_per_km')) {
+      context.handle(
+        _bestPaceMinPerKmMeta,
+        bestPaceMinPerKm.isAcceptableOrUnknown(
+          data['best_pace_min_per_km']!,
+          _bestPaceMinPerKmMeta,
+        ),
+      );
+    }
+    if (data.containsKey('estimated_calories')) {
+      context.handle(
+        _estimatedCaloriesMeta,
+        estimatedCalories.isAcceptableOrUnknown(
+          data['estimated_calories']!,
+          _estimatedCaloriesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('estimated_steps')) {
+      context.handle(
+        _estimatedStepsMeta,
+        estimatedSteps.isAcceptableOrUnknown(
+          data['estimated_steps']!,
+          _estimatedStepsMeta,
+        ),
+      );
+    }
     if (data.containsKey('route_points_json')) {
       context.handle(
         _routePointsJsonMeta,
@@ -199,6 +356,12 @@ class $WorkoutSessionsTable extends WorkoutSessions
           data['route_points_json']!,
           _routePointsJsonMeta,
         ),
+      );
+    }
+    if (data.containsKey('splits_json')) {
+      context.handle(
+        _splitsJsonMeta,
+        splitsJson.isAcceptableOrUnknown(data['splits_json']!, _splitsJsonMeta),
       );
     }
     return context;
@@ -234,6 +397,10 @@ class $WorkoutSessionsTable extends WorkoutSessions
         DriftSqlType.double,
         data['${effectivePrefix}avg_cadence'],
       )!,
+      maxCadence: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}max_cadence'],
+      )!,
       distanceKm: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}distance_km'],
@@ -242,9 +409,37 @@ class $WorkoutSessionsTable extends WorkoutSessions
         DriftSqlType.int,
         data['${effectivePrefix}duration_seconds'],
       )!,
+      movingDurationSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}moving_duration_seconds'],
+      )!,
+      pauseDurationSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pause_duration_seconds'],
+      )!,
+      avgPaceMinPerKm: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}avg_pace_min_per_km'],
+      ),
+      bestPaceMinPerKm: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}best_pace_min_per_km'],
+      ),
+      estimatedCalories: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}estimated_calories'],
+      )!,
+      estimatedSteps: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}estimated_steps'],
+      )!,
       routePointsJson: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}route_points_json'],
+      ),
+      splitsJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}splits_json'],
       ),
     );
   }
@@ -262,9 +457,17 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
   final String mode;
   final double targetCadence;
   final double avgCadence;
+  final double maxCadence;
   final double distanceKm;
   final int durationSeconds;
+  final int movingDurationSeconds;
+  final int pauseDurationSeconds;
+  final double? avgPaceMinPerKm;
+  final double? bestPaceMinPerKm;
+  final int estimatedCalories;
+  final int estimatedSteps;
   final String? routePointsJson;
+  final String? splitsJson;
   const WorkoutSession({
     required this.id,
     required this.startTime,
@@ -272,9 +475,17 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
     required this.mode,
     required this.targetCadence,
     required this.avgCadence,
+    required this.maxCadence,
     required this.distanceKm,
     required this.durationSeconds,
+    required this.movingDurationSeconds,
+    required this.pauseDurationSeconds,
+    this.avgPaceMinPerKm,
+    this.bestPaceMinPerKm,
+    required this.estimatedCalories,
+    required this.estimatedSteps,
     this.routePointsJson,
+    this.splitsJson,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -287,10 +498,24 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
     map['mode'] = Variable<String>(mode);
     map['target_cadence'] = Variable<double>(targetCadence);
     map['avg_cadence'] = Variable<double>(avgCadence);
+    map['max_cadence'] = Variable<double>(maxCadence);
     map['distance_km'] = Variable<double>(distanceKm);
     map['duration_seconds'] = Variable<int>(durationSeconds);
+    map['moving_duration_seconds'] = Variable<int>(movingDurationSeconds);
+    map['pause_duration_seconds'] = Variable<int>(pauseDurationSeconds);
+    if (!nullToAbsent || avgPaceMinPerKm != null) {
+      map['avg_pace_min_per_km'] = Variable<double>(avgPaceMinPerKm);
+    }
+    if (!nullToAbsent || bestPaceMinPerKm != null) {
+      map['best_pace_min_per_km'] = Variable<double>(bestPaceMinPerKm);
+    }
+    map['estimated_calories'] = Variable<int>(estimatedCalories);
+    map['estimated_steps'] = Variable<int>(estimatedSteps);
     if (!nullToAbsent || routePointsJson != null) {
       map['route_points_json'] = Variable<String>(routePointsJson);
+    }
+    if (!nullToAbsent || splitsJson != null) {
+      map['splits_json'] = Variable<String>(splitsJson);
     }
     return map;
   }
@@ -305,11 +530,25 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
       mode: Value(mode),
       targetCadence: Value(targetCadence),
       avgCadence: Value(avgCadence),
+      maxCadence: Value(maxCadence),
       distanceKm: Value(distanceKm),
       durationSeconds: Value(durationSeconds),
+      movingDurationSeconds: Value(movingDurationSeconds),
+      pauseDurationSeconds: Value(pauseDurationSeconds),
+      avgPaceMinPerKm: avgPaceMinPerKm == null && nullToAbsent
+          ? const Value.absent()
+          : Value(avgPaceMinPerKm),
+      bestPaceMinPerKm: bestPaceMinPerKm == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bestPaceMinPerKm),
+      estimatedCalories: Value(estimatedCalories),
+      estimatedSteps: Value(estimatedSteps),
       routePointsJson: routePointsJson == null && nullToAbsent
           ? const Value.absent()
           : Value(routePointsJson),
+      splitsJson: splitsJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(splitsJson),
     );
   }
 
@@ -325,9 +564,21 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
       mode: serializer.fromJson<String>(json['mode']),
       targetCadence: serializer.fromJson<double>(json['targetCadence']),
       avgCadence: serializer.fromJson<double>(json['avgCadence']),
+      maxCadence: serializer.fromJson<double>(json['maxCadence']),
       distanceKm: serializer.fromJson<double>(json['distanceKm']),
       durationSeconds: serializer.fromJson<int>(json['durationSeconds']),
+      movingDurationSeconds: serializer.fromJson<int>(
+        json['movingDurationSeconds'],
+      ),
+      pauseDurationSeconds: serializer.fromJson<int>(
+        json['pauseDurationSeconds'],
+      ),
+      avgPaceMinPerKm: serializer.fromJson<double?>(json['avgPaceMinPerKm']),
+      bestPaceMinPerKm: serializer.fromJson<double?>(json['bestPaceMinPerKm']),
+      estimatedCalories: serializer.fromJson<int>(json['estimatedCalories']),
+      estimatedSteps: serializer.fromJson<int>(json['estimatedSteps']),
       routePointsJson: serializer.fromJson<String?>(json['routePointsJson']),
+      splitsJson: serializer.fromJson<String?>(json['splitsJson']),
     );
   }
   @override
@@ -340,9 +591,17 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
       'mode': serializer.toJson<String>(mode),
       'targetCadence': serializer.toJson<double>(targetCadence),
       'avgCadence': serializer.toJson<double>(avgCadence),
+      'maxCadence': serializer.toJson<double>(maxCadence),
       'distanceKm': serializer.toJson<double>(distanceKm),
       'durationSeconds': serializer.toJson<int>(durationSeconds),
+      'movingDurationSeconds': serializer.toJson<int>(movingDurationSeconds),
+      'pauseDurationSeconds': serializer.toJson<int>(pauseDurationSeconds),
+      'avgPaceMinPerKm': serializer.toJson<double?>(avgPaceMinPerKm),
+      'bestPaceMinPerKm': serializer.toJson<double?>(bestPaceMinPerKm),
+      'estimatedCalories': serializer.toJson<int>(estimatedCalories),
+      'estimatedSteps': serializer.toJson<int>(estimatedSteps),
       'routePointsJson': serializer.toJson<String?>(routePointsJson),
+      'splitsJson': serializer.toJson<String?>(splitsJson),
     };
   }
 
@@ -353,9 +612,17 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
     String? mode,
     double? targetCadence,
     double? avgCadence,
+    double? maxCadence,
     double? distanceKm,
     int? durationSeconds,
+    int? movingDurationSeconds,
+    int? pauseDurationSeconds,
+    Value<double?> avgPaceMinPerKm = const Value.absent(),
+    Value<double?> bestPaceMinPerKm = const Value.absent(),
+    int? estimatedCalories,
+    int? estimatedSteps,
     Value<String?> routePointsJson = const Value.absent(),
+    Value<String?> splitsJson = const Value.absent(),
   }) => WorkoutSession(
     id: id ?? this.id,
     startTime: startTime ?? this.startTime,
@@ -363,11 +630,23 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
     mode: mode ?? this.mode,
     targetCadence: targetCadence ?? this.targetCadence,
     avgCadence: avgCadence ?? this.avgCadence,
+    maxCadence: maxCadence ?? this.maxCadence,
     distanceKm: distanceKm ?? this.distanceKm,
     durationSeconds: durationSeconds ?? this.durationSeconds,
+    movingDurationSeconds: movingDurationSeconds ?? this.movingDurationSeconds,
+    pauseDurationSeconds: pauseDurationSeconds ?? this.pauseDurationSeconds,
+    avgPaceMinPerKm: avgPaceMinPerKm.present
+        ? avgPaceMinPerKm.value
+        : this.avgPaceMinPerKm,
+    bestPaceMinPerKm: bestPaceMinPerKm.present
+        ? bestPaceMinPerKm.value
+        : this.bestPaceMinPerKm,
+    estimatedCalories: estimatedCalories ?? this.estimatedCalories,
+    estimatedSteps: estimatedSteps ?? this.estimatedSteps,
     routePointsJson: routePointsJson.present
         ? routePointsJson.value
         : this.routePointsJson,
+    splitsJson: splitsJson.present ? splitsJson.value : this.splitsJson,
   );
   WorkoutSession copyWithCompanion(WorkoutSessionsCompanion data) {
     return WorkoutSession(
@@ -381,15 +660,39 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
       avgCadence: data.avgCadence.present
           ? data.avgCadence.value
           : this.avgCadence,
+      maxCadence: data.maxCadence.present
+          ? data.maxCadence.value
+          : this.maxCadence,
       distanceKm: data.distanceKm.present
           ? data.distanceKm.value
           : this.distanceKm,
       durationSeconds: data.durationSeconds.present
           ? data.durationSeconds.value
           : this.durationSeconds,
+      movingDurationSeconds: data.movingDurationSeconds.present
+          ? data.movingDurationSeconds.value
+          : this.movingDurationSeconds,
+      pauseDurationSeconds: data.pauseDurationSeconds.present
+          ? data.pauseDurationSeconds.value
+          : this.pauseDurationSeconds,
+      avgPaceMinPerKm: data.avgPaceMinPerKm.present
+          ? data.avgPaceMinPerKm.value
+          : this.avgPaceMinPerKm,
+      bestPaceMinPerKm: data.bestPaceMinPerKm.present
+          ? data.bestPaceMinPerKm.value
+          : this.bestPaceMinPerKm,
+      estimatedCalories: data.estimatedCalories.present
+          ? data.estimatedCalories.value
+          : this.estimatedCalories,
+      estimatedSteps: data.estimatedSteps.present
+          ? data.estimatedSteps.value
+          : this.estimatedSteps,
       routePointsJson: data.routePointsJson.present
           ? data.routePointsJson.value
           : this.routePointsJson,
+      splitsJson: data.splitsJson.present
+          ? data.splitsJson.value
+          : this.splitsJson,
     );
   }
 
@@ -402,9 +705,17 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
           ..write('mode: $mode, ')
           ..write('targetCadence: $targetCadence, ')
           ..write('avgCadence: $avgCadence, ')
+          ..write('maxCadence: $maxCadence, ')
           ..write('distanceKm: $distanceKm, ')
           ..write('durationSeconds: $durationSeconds, ')
-          ..write('routePointsJson: $routePointsJson')
+          ..write('movingDurationSeconds: $movingDurationSeconds, ')
+          ..write('pauseDurationSeconds: $pauseDurationSeconds, ')
+          ..write('avgPaceMinPerKm: $avgPaceMinPerKm, ')
+          ..write('bestPaceMinPerKm: $bestPaceMinPerKm, ')
+          ..write('estimatedCalories: $estimatedCalories, ')
+          ..write('estimatedSteps: $estimatedSteps, ')
+          ..write('routePointsJson: $routePointsJson, ')
+          ..write('splitsJson: $splitsJson')
           ..write(')'))
         .toString();
   }
@@ -417,9 +728,17 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
     mode,
     targetCadence,
     avgCadence,
+    maxCadence,
     distanceKm,
     durationSeconds,
+    movingDurationSeconds,
+    pauseDurationSeconds,
+    avgPaceMinPerKm,
+    bestPaceMinPerKm,
+    estimatedCalories,
+    estimatedSteps,
     routePointsJson,
+    splitsJson,
   );
   @override
   bool operator ==(Object other) =>
@@ -431,9 +750,17 @@ class WorkoutSession extends DataClass implements Insertable<WorkoutSession> {
           other.mode == this.mode &&
           other.targetCadence == this.targetCadence &&
           other.avgCadence == this.avgCadence &&
+          other.maxCadence == this.maxCadence &&
           other.distanceKm == this.distanceKm &&
           other.durationSeconds == this.durationSeconds &&
-          other.routePointsJson == this.routePointsJson);
+          other.movingDurationSeconds == this.movingDurationSeconds &&
+          other.pauseDurationSeconds == this.pauseDurationSeconds &&
+          other.avgPaceMinPerKm == this.avgPaceMinPerKm &&
+          other.bestPaceMinPerKm == this.bestPaceMinPerKm &&
+          other.estimatedCalories == this.estimatedCalories &&
+          other.estimatedSteps == this.estimatedSteps &&
+          other.routePointsJson == this.routePointsJson &&
+          other.splitsJson == this.splitsJson);
 }
 
 class WorkoutSessionsCompanion extends UpdateCompanion<WorkoutSession> {
@@ -443,9 +770,17 @@ class WorkoutSessionsCompanion extends UpdateCompanion<WorkoutSession> {
   final Value<String> mode;
   final Value<double> targetCadence;
   final Value<double> avgCadence;
+  final Value<double> maxCadence;
   final Value<double> distanceKm;
   final Value<int> durationSeconds;
+  final Value<int> movingDurationSeconds;
+  final Value<int> pauseDurationSeconds;
+  final Value<double?> avgPaceMinPerKm;
+  final Value<double?> bestPaceMinPerKm;
+  final Value<int> estimatedCalories;
+  final Value<int> estimatedSteps;
   final Value<String?> routePointsJson;
+  final Value<String?> splitsJson;
   const WorkoutSessionsCompanion({
     this.id = const Value.absent(),
     this.startTime = const Value.absent(),
@@ -453,23 +788,37 @@ class WorkoutSessionsCompanion extends UpdateCompanion<WorkoutSession> {
     this.mode = const Value.absent(),
     this.targetCadence = const Value.absent(),
     this.avgCadence = const Value.absent(),
+    this.maxCadence = const Value.absent(),
     this.distanceKm = const Value.absent(),
     this.durationSeconds = const Value.absent(),
+    this.movingDurationSeconds = const Value.absent(),
+    this.pauseDurationSeconds = const Value.absent(),
+    this.avgPaceMinPerKm = const Value.absent(),
+    this.bestPaceMinPerKm = const Value.absent(),
+    this.estimatedCalories = const Value.absent(),
+    this.estimatedSteps = const Value.absent(),
     this.routePointsJson = const Value.absent(),
+    this.splitsJson = const Value.absent(),
   });
   WorkoutSessionsCompanion.insert({
     this.id = const Value.absent(),
     required DateTime startTime,
     this.endTime = const Value.absent(),
-    required String mode,
-    required double targetCadence,
+    this.mode = const Value.absent(),
+    this.targetCadence = const Value.absent(),
     this.avgCadence = const Value.absent(),
+    this.maxCadence = const Value.absent(),
     this.distanceKm = const Value.absent(),
     this.durationSeconds = const Value.absent(),
+    this.movingDurationSeconds = const Value.absent(),
+    this.pauseDurationSeconds = const Value.absent(),
+    this.avgPaceMinPerKm = const Value.absent(),
+    this.bestPaceMinPerKm = const Value.absent(),
+    this.estimatedCalories = const Value.absent(),
+    this.estimatedSteps = const Value.absent(),
     this.routePointsJson = const Value.absent(),
-  }) : startTime = Value(startTime),
-       mode = Value(mode),
-       targetCadence = Value(targetCadence);
+    this.splitsJson = const Value.absent(),
+  }) : startTime = Value(startTime);
   static Insertable<WorkoutSession> custom({
     Expression<int>? id,
     Expression<DateTime>? startTime,
@@ -477,9 +826,17 @@ class WorkoutSessionsCompanion extends UpdateCompanion<WorkoutSession> {
     Expression<String>? mode,
     Expression<double>? targetCadence,
     Expression<double>? avgCadence,
+    Expression<double>? maxCadence,
     Expression<double>? distanceKm,
     Expression<int>? durationSeconds,
+    Expression<int>? movingDurationSeconds,
+    Expression<int>? pauseDurationSeconds,
+    Expression<double>? avgPaceMinPerKm,
+    Expression<double>? bestPaceMinPerKm,
+    Expression<int>? estimatedCalories,
+    Expression<int>? estimatedSteps,
     Expression<String>? routePointsJson,
+    Expression<String>? splitsJson,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -488,9 +845,19 @@ class WorkoutSessionsCompanion extends UpdateCompanion<WorkoutSession> {
       if (mode != null) 'mode': mode,
       if (targetCadence != null) 'target_cadence': targetCadence,
       if (avgCadence != null) 'avg_cadence': avgCadence,
+      if (maxCadence != null) 'max_cadence': maxCadence,
       if (distanceKm != null) 'distance_km': distanceKm,
       if (durationSeconds != null) 'duration_seconds': durationSeconds,
+      if (movingDurationSeconds != null)
+        'moving_duration_seconds': movingDurationSeconds,
+      if (pauseDurationSeconds != null)
+        'pause_duration_seconds': pauseDurationSeconds,
+      if (avgPaceMinPerKm != null) 'avg_pace_min_per_km': avgPaceMinPerKm,
+      if (bestPaceMinPerKm != null) 'best_pace_min_per_km': bestPaceMinPerKm,
+      if (estimatedCalories != null) 'estimated_calories': estimatedCalories,
+      if (estimatedSteps != null) 'estimated_steps': estimatedSteps,
       if (routePointsJson != null) 'route_points_json': routePointsJson,
+      if (splitsJson != null) 'splits_json': splitsJson,
     });
   }
 
@@ -501,9 +868,17 @@ class WorkoutSessionsCompanion extends UpdateCompanion<WorkoutSession> {
     Value<String>? mode,
     Value<double>? targetCadence,
     Value<double>? avgCadence,
+    Value<double>? maxCadence,
     Value<double>? distanceKm,
     Value<int>? durationSeconds,
+    Value<int>? movingDurationSeconds,
+    Value<int>? pauseDurationSeconds,
+    Value<double?>? avgPaceMinPerKm,
+    Value<double?>? bestPaceMinPerKm,
+    Value<int>? estimatedCalories,
+    Value<int>? estimatedSteps,
     Value<String?>? routePointsJson,
+    Value<String?>? splitsJson,
   }) {
     return WorkoutSessionsCompanion(
       id: id ?? this.id,
@@ -512,9 +887,18 @@ class WorkoutSessionsCompanion extends UpdateCompanion<WorkoutSession> {
       mode: mode ?? this.mode,
       targetCadence: targetCadence ?? this.targetCadence,
       avgCadence: avgCadence ?? this.avgCadence,
+      maxCadence: maxCadence ?? this.maxCadence,
       distanceKm: distanceKm ?? this.distanceKm,
       durationSeconds: durationSeconds ?? this.durationSeconds,
+      movingDurationSeconds:
+          movingDurationSeconds ?? this.movingDurationSeconds,
+      pauseDurationSeconds: pauseDurationSeconds ?? this.pauseDurationSeconds,
+      avgPaceMinPerKm: avgPaceMinPerKm ?? this.avgPaceMinPerKm,
+      bestPaceMinPerKm: bestPaceMinPerKm ?? this.bestPaceMinPerKm,
+      estimatedCalories: estimatedCalories ?? this.estimatedCalories,
+      estimatedSteps: estimatedSteps ?? this.estimatedSteps,
       routePointsJson: routePointsJson ?? this.routePointsJson,
+      splitsJson: splitsJson ?? this.splitsJson,
     );
   }
 
@@ -539,14 +923,40 @@ class WorkoutSessionsCompanion extends UpdateCompanion<WorkoutSession> {
     if (avgCadence.present) {
       map['avg_cadence'] = Variable<double>(avgCadence.value);
     }
+    if (maxCadence.present) {
+      map['max_cadence'] = Variable<double>(maxCadence.value);
+    }
     if (distanceKm.present) {
       map['distance_km'] = Variable<double>(distanceKm.value);
     }
     if (durationSeconds.present) {
       map['duration_seconds'] = Variable<int>(durationSeconds.value);
     }
+    if (movingDurationSeconds.present) {
+      map['moving_duration_seconds'] = Variable<int>(
+        movingDurationSeconds.value,
+      );
+    }
+    if (pauseDurationSeconds.present) {
+      map['pause_duration_seconds'] = Variable<int>(pauseDurationSeconds.value);
+    }
+    if (avgPaceMinPerKm.present) {
+      map['avg_pace_min_per_km'] = Variable<double>(avgPaceMinPerKm.value);
+    }
+    if (bestPaceMinPerKm.present) {
+      map['best_pace_min_per_km'] = Variable<double>(bestPaceMinPerKm.value);
+    }
+    if (estimatedCalories.present) {
+      map['estimated_calories'] = Variable<int>(estimatedCalories.value);
+    }
+    if (estimatedSteps.present) {
+      map['estimated_steps'] = Variable<int>(estimatedSteps.value);
+    }
     if (routePointsJson.present) {
       map['route_points_json'] = Variable<String>(routePointsJson.value);
+    }
+    if (splitsJson.present) {
+      map['splits_json'] = Variable<String>(splitsJson.value);
     }
     return map;
   }
@@ -560,9 +970,17 @@ class WorkoutSessionsCompanion extends UpdateCompanion<WorkoutSession> {
           ..write('mode: $mode, ')
           ..write('targetCadence: $targetCadence, ')
           ..write('avgCadence: $avgCadence, ')
+          ..write('maxCadence: $maxCadence, ')
           ..write('distanceKm: $distanceKm, ')
           ..write('durationSeconds: $durationSeconds, ')
-          ..write('routePointsJson: $routePointsJson')
+          ..write('movingDurationSeconds: $movingDurationSeconds, ')
+          ..write('pauseDurationSeconds: $pauseDurationSeconds, ')
+          ..write('avgPaceMinPerKm: $avgPaceMinPerKm, ')
+          ..write('bestPaceMinPerKm: $bestPaceMinPerKm, ')
+          ..write('estimatedCalories: $estimatedCalories, ')
+          ..write('estimatedSteps: $estimatedSteps, ')
+          ..write('routePointsJson: $routePointsJson, ')
+          ..write('splitsJson: $splitsJson')
           ..write(')'))
         .toString();
   }
@@ -1059,12 +1477,20 @@ typedef $$WorkoutSessionsTableCreateCompanionBuilder =
       Value<int> id,
       required DateTime startTime,
       Value<DateTime?> endTime,
-      required String mode,
-      required double targetCadence,
+      Value<String> mode,
+      Value<double> targetCadence,
       Value<double> avgCadence,
+      Value<double> maxCadence,
       Value<double> distanceKm,
       Value<int> durationSeconds,
+      Value<int> movingDurationSeconds,
+      Value<int> pauseDurationSeconds,
+      Value<double?> avgPaceMinPerKm,
+      Value<double?> bestPaceMinPerKm,
+      Value<int> estimatedCalories,
+      Value<int> estimatedSteps,
       Value<String?> routePointsJson,
+      Value<String?> splitsJson,
     });
 typedef $$WorkoutSessionsTableUpdateCompanionBuilder =
     WorkoutSessionsCompanion Function({
@@ -1074,9 +1500,17 @@ typedef $$WorkoutSessionsTableUpdateCompanionBuilder =
       Value<String> mode,
       Value<double> targetCadence,
       Value<double> avgCadence,
+      Value<double> maxCadence,
       Value<double> distanceKm,
       Value<int> durationSeconds,
+      Value<int> movingDurationSeconds,
+      Value<int> pauseDurationSeconds,
+      Value<double?> avgPaceMinPerKm,
+      Value<double?> bestPaceMinPerKm,
+      Value<int> estimatedCalories,
+      Value<int> estimatedSteps,
       Value<String?> routePointsJson,
+      Value<String?> splitsJson,
     });
 
 final class $$WorkoutSessionsTableReferences
@@ -1146,6 +1580,11 @@ class $$WorkoutSessionsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<double> get maxCadence => $composableBuilder(
+    column: $table.maxCadence,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<double> get distanceKm => $composableBuilder(
     column: $table.distanceKm,
     builder: (column) => ColumnFilters(column),
@@ -1156,8 +1595,43 @@ class $$WorkoutSessionsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get movingDurationSeconds => $composableBuilder(
+    column: $table.movingDurationSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get pauseDurationSeconds => $composableBuilder(
+    column: $table.pauseDurationSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get avgPaceMinPerKm => $composableBuilder(
+    column: $table.avgPaceMinPerKm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get bestPaceMinPerKm => $composableBuilder(
+    column: $table.bestPaceMinPerKm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get estimatedCalories => $composableBuilder(
+    column: $table.estimatedCalories,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get estimatedSteps => $composableBuilder(
+    column: $table.estimatedSteps,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get routePointsJson => $composableBuilder(
     column: $table.routePointsJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get splitsJson => $composableBuilder(
+    column: $table.splitsJson,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1226,6 +1700,11 @@ class $$WorkoutSessionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get maxCadence => $composableBuilder(
+    column: $table.maxCadence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get distanceKm => $composableBuilder(
     column: $table.distanceKm,
     builder: (column) => ColumnOrderings(column),
@@ -1236,8 +1715,43 @@ class $$WorkoutSessionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get movingDurationSeconds => $composableBuilder(
+    column: $table.movingDurationSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get pauseDurationSeconds => $composableBuilder(
+    column: $table.pauseDurationSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get avgPaceMinPerKm => $composableBuilder(
+    column: $table.avgPaceMinPerKm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get bestPaceMinPerKm => $composableBuilder(
+    column: $table.bestPaceMinPerKm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get estimatedCalories => $composableBuilder(
+    column: $table.estimatedCalories,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get estimatedSteps => $composableBuilder(
+    column: $table.estimatedSteps,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get routePointsJson => $composableBuilder(
     column: $table.routePointsJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get splitsJson => $composableBuilder(
+    column: $table.splitsJson,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -1273,6 +1787,11 @@ class $$WorkoutSessionsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<double> get maxCadence => $composableBuilder(
+    column: $table.maxCadence,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<double> get distanceKm => $composableBuilder(
     column: $table.distanceKm,
     builder: (column) => column,
@@ -1283,8 +1802,43 @@ class $$WorkoutSessionsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<int> get movingDurationSeconds => $composableBuilder(
+    column: $table.movingDurationSeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get pauseDurationSeconds => $composableBuilder(
+    column: $table.pauseDurationSeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get avgPaceMinPerKm => $composableBuilder(
+    column: $table.avgPaceMinPerKm,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get bestPaceMinPerKm => $composableBuilder(
+    column: $table.bestPaceMinPerKm,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get estimatedCalories => $composableBuilder(
+    column: $table.estimatedCalories,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get estimatedSteps => $composableBuilder(
+    column: $table.estimatedSteps,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get routePointsJson => $composableBuilder(
     column: $table.routePointsJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get splitsJson => $composableBuilder(
+    column: $table.splitsJson,
     builder: (column) => column,
   );
 
@@ -1350,9 +1904,17 @@ class $$WorkoutSessionsTableTableManager
                 Value<String> mode = const Value.absent(),
                 Value<double> targetCadence = const Value.absent(),
                 Value<double> avgCadence = const Value.absent(),
+                Value<double> maxCadence = const Value.absent(),
                 Value<double> distanceKm = const Value.absent(),
                 Value<int> durationSeconds = const Value.absent(),
+                Value<int> movingDurationSeconds = const Value.absent(),
+                Value<int> pauseDurationSeconds = const Value.absent(),
+                Value<double?> avgPaceMinPerKm = const Value.absent(),
+                Value<double?> bestPaceMinPerKm = const Value.absent(),
+                Value<int> estimatedCalories = const Value.absent(),
+                Value<int> estimatedSteps = const Value.absent(),
                 Value<String?> routePointsJson = const Value.absent(),
+                Value<String?> splitsJson = const Value.absent(),
               }) => WorkoutSessionsCompanion(
                 id: id,
                 startTime: startTime,
@@ -1360,21 +1922,37 @@ class $$WorkoutSessionsTableTableManager
                 mode: mode,
                 targetCadence: targetCadence,
                 avgCadence: avgCadence,
+                maxCadence: maxCadence,
                 distanceKm: distanceKm,
                 durationSeconds: durationSeconds,
+                movingDurationSeconds: movingDurationSeconds,
+                pauseDurationSeconds: pauseDurationSeconds,
+                avgPaceMinPerKm: avgPaceMinPerKm,
+                bestPaceMinPerKm: bestPaceMinPerKm,
+                estimatedCalories: estimatedCalories,
+                estimatedSteps: estimatedSteps,
                 routePointsJson: routePointsJson,
+                splitsJson: splitsJson,
               ),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
                 required DateTime startTime,
                 Value<DateTime?> endTime = const Value.absent(),
-                required String mode,
-                required double targetCadence,
+                Value<String> mode = const Value.absent(),
+                Value<double> targetCadence = const Value.absent(),
                 Value<double> avgCadence = const Value.absent(),
+                Value<double> maxCadence = const Value.absent(),
                 Value<double> distanceKm = const Value.absent(),
                 Value<int> durationSeconds = const Value.absent(),
+                Value<int> movingDurationSeconds = const Value.absent(),
+                Value<int> pauseDurationSeconds = const Value.absent(),
+                Value<double?> avgPaceMinPerKm = const Value.absent(),
+                Value<double?> bestPaceMinPerKm = const Value.absent(),
+                Value<int> estimatedCalories = const Value.absent(),
+                Value<int> estimatedSteps = const Value.absent(),
                 Value<String?> routePointsJson = const Value.absent(),
+                Value<String?> splitsJson = const Value.absent(),
               }) => WorkoutSessionsCompanion.insert(
                 id: id,
                 startTime: startTime,
@@ -1382,9 +1960,17 @@ class $$WorkoutSessionsTableTableManager
                 mode: mode,
                 targetCadence: targetCadence,
                 avgCadence: avgCadence,
+                maxCadence: maxCadence,
                 distanceKm: distanceKm,
                 durationSeconds: durationSeconds,
+                movingDurationSeconds: movingDurationSeconds,
+                pauseDurationSeconds: pauseDurationSeconds,
+                avgPaceMinPerKm: avgPaceMinPerKm,
+                bestPaceMinPerKm: bestPaceMinPerKm,
+                estimatedCalories: estimatedCalories,
+                estimatedSteps: estimatedSteps,
                 routePointsJson: routePointsJson,
+                splitsJson: splitsJson,
               ),
           withReferenceMapper: (p0) => p0
               .map(
