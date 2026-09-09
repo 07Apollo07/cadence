@@ -4,12 +4,12 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/storage/app_database.dart';
 import '../../core/theme/app_colors.dart';
 import 'models/gps_track_point.dart';
 import 'models/km_split.dart';
 import 'repositories/gps_session_repository.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class RunDetailScreen extends ConsumerStatefulWidget {
   final WorkoutSession session;
@@ -101,7 +101,6 @@ class _RunDetailScreenState extends ConsumerState<RunDetailScreen> {
           _animationProgress = 1.0;
           _stopPlayback();
         } else {
-          // Center map on current animated point if tracking
           if (_points.isNotEmpty) {
             final idx = (_animationProgress * (_points.length - 1)).round();
             final pt = _points[idx];
@@ -123,6 +122,29 @@ class _RunDetailScreenState extends ConsumerState<RunDetailScreen> {
     });
   }
 
+  void _onGraphScrub(Offset localPosition, double graphWidth) {
+    if (graphWidth <= 0 || _points.isEmpty) return;
+    if (_isPlayingAnimation) _stopPlayback();
+
+    const leftPad = 36.0;
+    const rightPad = 10.0;
+    final chartWidth = graphWidth - leftPad - rightPad;
+    if (chartWidth <= 0) return;
+
+    final relativeX = (localPosition.dx - leftPad).clamp(0.0, chartWidth);
+    final progress = (relativeX / chartWidth).clamp(0.0, 1.0);
+
+    setState(() {
+      _animationProgress = progress;
+      final idx = (_animationProgress * (_points.length - 1)).round();
+      final pt = _points[idx];
+      _mapController.move(
+        LatLng(pt.latitude, pt.longitude),
+        _mapController.camera.zoom,
+      );
+    });
+  }
+
   String _formatDuration(int seconds) {
     final h = seconds ~/ 3600;
     final m = (seconds % 3600) ~/ 60;
@@ -137,6 +159,122 @@ class _RunDetailScreenState extends ConsumerState<RunDetailScreen> {
     return '${dt.month}/${dt.day}/${dt.year} • ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
+  List<Marker> _buildMapMarkers(
+    List<LatLng> allLatLngs,
+    LatLng currentAnimatedPoint,
+  ) {
+    final markers = <Marker>[];
+    if (allLatLngs.isEmpty) return markers;
+
+    // Start Marker
+    markers.add(
+      Marker(
+        point: allLatLngs.first,
+        width: 30,
+        height: 30,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.green.shade600,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2),
+            boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 4)],
+          ),
+          child: const Icon(Icons.play_arrow, size: 18, color: Colors.white),
+        ),
+      ),
+    );
+
+    // Finish Marker
+    if (allLatLngs.length > 1) {
+      markers.add(
+        Marker(
+          point: allLatLngs.last,
+          width: 30,
+          height: 30,
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.statusDanger,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+              boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 4)],
+            ),
+            child: const Icon(Icons.flag, size: 16, color: Colors.white),
+          ),
+        ),
+      );
+    }
+
+    // 1 KM Split Markers
+    for (final split in _splits) {
+      final targetDist = split.kilometer.toDouble();
+      GpsTrackPoint? closestPt;
+      double minDiff = 999999;
+      for (final pt in _points) {
+        final diff = (pt.distanceFromStartKm - targetDist).abs();
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestPt = pt;
+        }
+      }
+      if (closestPt != null && minDiff < 0.3) {
+        markers.add(
+          Marker(
+            point: closestPt.latLng,
+            width: 24,
+            height: 24,
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.surfacePanel,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.traceCalm, width: 2.0),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black26, blurRadius: 2),
+                ],
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '${split.kilometer}',
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    // Active Runner Marker
+    if (_animationProgress > 0.0) {
+      markers.add(
+        Marker(
+          point: currentAnimatedPoint,
+          width: 34,
+          height: 34,
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.traceCalm,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 3),
+              boxShadow: const [
+                BoxShadow(color: Colors.black38, blurRadius: 6),
+              ],
+            ),
+            child: const Icon(
+              Icons.directions_run,
+              size: 18,
+              color: Colors.black,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return markers;
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = widget.session;
@@ -144,10 +282,11 @@ class _RunDetailScreenState extends ConsumerState<RunDetailScreen> {
         .map((p) => LatLng(p.latitude, p.longitude))
         .toList();
 
-    // Sub-list of points for animation
     final animatedCount = _points.isEmpty
         ? 0
-        : (_animationProgress * _points.length).ceil().clamp(1, _points.length);
+        : (_animationProgress * _points.length)
+            .ceil()
+            .clamp(1, _points.length);
     final visibleLatLngs = allLatLngs.isEmpty
         ? <LatLng>[]
         : allLatLngs.sublist(0, animatedCount);
@@ -157,6 +296,22 @@ class _RunDetailScreenState extends ConsumerState<RunDetailScreen> {
         : (allLatLngs.isNotEmpty
               ? allLatLngs.first
               : const LatLng(37.7749, -122.4194));
+
+    final idleSeconds = (s.durationSeconds -
+            s.movingDurationSeconds -
+            s.pauseDurationSeconds)
+        .clamp(0, 999999);
+
+    KmSplit? fastestSplit;
+    KmSplit? slowestSplit;
+    if (_splits.isNotEmpty) {
+      fastestSplit = _splits.reduce(
+        (a, b) => a.avgPaceMinPerKm < b.avgPaceMinPerKm ? a : b,
+      );
+      slowestSplit = _splits.reduce(
+        (a, b) => a.avgPaceMinPerKm > b.avgPaceMinPerKm ? a : b,
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppColors.surfaceBase,
@@ -204,18 +359,23 @@ class _RunDetailScreenState extends ConsumerState<RunDetailScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Map Header
-            SizedBox(
-              height: 280,
-              child: Stack(
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Map Header (pinned at top)
+          SizedBox(
+            height: 260,
+            child: Stack(
                 children: [
                   FlutterMap(
                     mapController: _mapController,
                     options: MapOptions(
+                      initialCameraFit: allLatLngs.isNotEmpty
+                          ? CameraFit.bounds(
+                              bounds: LatLngBounds.fromPoints(allLatLngs),
+                              padding: const EdgeInsets.all(36.0),
+                            )
+                          : null,
                       initialCenter: allLatLngs.isNotEmpty
                           ? allLatLngs.first
                           : const LatLng(37.7749, -122.4194),
@@ -232,7 +392,8 @@ class _RunDetailScreenState extends ConsumerState<RunDetailScreen> {
                           polylines: [
                             Polyline(
                               points: allLatLngs,
-                              color: AppColors.textMuted.withValues(alpha: 0.4),
+                              color:
+                                  AppColors.textMuted.withValues(alpha: 0.35),
                               strokeWidth: 4.0,
                             ),
                             if (visibleLatLngs.isNotEmpty)
@@ -243,40 +404,14 @@ class _RunDetailScreenState extends ConsumerState<RunDetailScreen> {
                               ),
                           ],
                         ),
-                      if (visibleLatLngs.isNotEmpty)
-                        MarkerLayer(
-                          markers: [
-                            Marker(
-                              point: currentAnimatedPoint,
-                              width: 32,
-                              height: 32,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: AppColors.traceCalm,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white,
-                                    width: 3,
-                                  ),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: Colors.black26,
-                                      blurRadius: 4,
-                                    ),
-                                  ],
-                                ),
-                                child: const Icon(
-                                  Icons.directions_run,
-                                  size: 16,
-                                  color: Colors.black,
-                                ),
-                              ),
-                            ),
-                          ],
+                      MarkerLayer(
+                        markers: _buildMapMarkers(
+                          allLatLngs,
+                          currentAnimatedPoint,
                         ),
+                      ),
                     ],
                   ),
-                  // Map Controls (Zoom & Recenter)
                   Positioned(
                     right: 16,
                     bottom: 16,
@@ -324,6 +459,23 @@ class _RunDetailScreenState extends ConsumerState<RunDetailScreen> {
                             _mapController.move(target, 15.0);
                           },
                           child: const Icon(Icons.my_location),
+                        ),
+                        const SizedBox(height: 8),
+                        FloatingActionButton.small(
+                          heroTag: 'detail_fit_bounds',
+                          backgroundColor: AppColors.surfacePanel,
+                          foregroundColor: AppColors.traceCalm,
+                          onPressed: () {
+                            if (allLatLngs.isNotEmpty) {
+                              _mapController.fitCamera(
+                                CameraFit.bounds(
+                                  bounds: LatLngBounds.fromPoints(allLatLngs),
+                                  padding: const EdgeInsets.all(36.0),
+                                ),
+                              );
+                            }
+                          },
+                          child: const Icon(Icons.center_focus_strong),
                         ),
                       ],
                     ),
@@ -390,140 +542,98 @@ class _RunDetailScreenState extends ConsumerState<RunDetailScreen> {
                 ],
               ),
             ),
-            // Below map: Animate Run button / controls
-            if (_points.length > 2)
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                child: !_isPlayingAnimation && _animationProgress == 0.0
-                    ? SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.traceCalm,
-                            foregroundColor: Colors.black,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          icon: const Icon(
-                            Icons.play_arrow,
-                            color: Colors.black,
-                          ),
-                          label: const Text(
-                            'Animate Run',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Colors.black,
-                            ),
-                          ),
-                          onPressed: _startPlayback,
+
+            if (_points.isNotEmpty)
+              Container(
+                color: AppColors.surfacePanel,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        _isPlayingAnimation
+                            ? Icons.pause_circle_filled
+                            : Icons.play_circle_filled,
+                        color: AppColors.traceCalm,
+                        size: 32,
+                      ),
+                      onPressed: _togglePlayback,
+                    ),
+                    Expanded(
+                      child: SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          activeTrackColor: AppColors.traceCalm,
+                          thumbColor: AppColors.traceCalm,
+                          trackHeight: 3,
                         ),
-                      )
-                    : Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfacePanel,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.hairline),
-                        ),
-                        child: Row(
-                          children: [
-                            IconButton(
-                              icon: Icon(
-                                _isPlayingAnimation
-                                    ? Icons.pause
-                                    : Icons.play_arrow,
-                                color: AppColors.traceCalm,
-                              ),
-                              onPressed: _togglePlayback,
-                            ),
-                            Expanded(
-                              child: Slider(
-                                value: _animationProgress,
-                                activeColor: AppColors.traceCalm,
-                                inactiveColor: AppColors.hairline,
-                                onChanged: (val) {
-                                  setState(() {
-                                    _animationProgress = val;
-                                    if (_points.isNotEmpty) {
-                                      final idx =
-                                          (_animationProgress *
-                                                  (_points.length - 1))
-                                              .round();
-                                      final pt = _points[idx];
-                                      _mapController.move(
-                                        LatLng(pt.latitude, pt.longitude),
-                                        _mapController.camera.zoom,
-                                      );
-                                    }
-                                  });
-                                },
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.stop,
-                                color: AppColors.statusDanger,
-                              ),
-                              onPressed: () {
-                                _stopPlayback();
-                                setState(() {
-                                  _animationProgress = 0.0;
-                                });
-                              },
-                            ),
-                            PopupMenuButton<double>(
-                              icon: Text(
-                                '${_playbackSpeedMultiplier}x',
-                                style: const TextStyle(
-                                  color: AppColors.textPrimary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              onSelected: (speed) {
-                                setState(() {
-                                  _playbackSpeedMultiplier = speed;
-                                });
-                              },
-                              itemBuilder: (context) => [
-                                const PopupMenuItem(
-                                  value: 1.0,
-                                  child: Text('1x speed'),
-                                ),
-                                const PopupMenuItem(
-                                  value: 2.0,
-                                  child: Text('2x speed'),
-                                ),
-                                const PopupMenuItem(
-                                  value: 5.0,
-                                  child: Text('5x speed'),
-                                ),
-                                const PopupMenuItem(
-                                  value: 10.0,
-                                  child: Text('10x speed'),
-                                ),
-                              ],
-                            ),
-                          ],
+                        child: Slider(
+                          value: _animationProgress,
+                          onChanged: (val) {
+                            if (_isPlayingAnimation) _stopPlayback();
+                            setState(() {
+                              _animationProgress = val;
+                              final idx = (_animationProgress *
+                                      (_points.length - 1))
+                                  .round();
+                              final pt = _points[idx];
+                              _mapController.move(
+                                LatLng(pt.latitude, pt.longitude),
+                                _mapController.camera.zoom,
+                              );
+                            });
+                          },
                         ),
                       ),
+                    ),
+                    PopupMenuButton<double>(
+                      initialValue: _playbackSpeedMultiplier,
+                      onSelected: (speed) {
+                        setState(() {
+                          _playbackSpeedMultiplier = speed;
+                        });
+                        if (_isPlayingAnimation) {
+                          _stopPlayback();
+                          _startPlayback();
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceRaised,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${_playbackSpeedMultiplier.toStringAsFixed(_playbackSpeedMultiplier.truncateToDouble() == _playbackSpeedMultiplier ? 0 : 1)}x',
+                          style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      itemBuilder: (context) => const [
+                        PopupMenuItem(value: 0.5, child: Text('0.5x speed')),
+                        PopupMenuItem(value: 1.0, child: Text('1x speed')),
+                        PopupMenuItem(value: 2.0, child: Text('2x speed')),
+                        PopupMenuItem(value: 5.0, child: Text('5x speed')),
+                        PopupMenuItem(value: 10.0, child: Text('10x speed')),
+                      ],
+                    ),
+                  ],
+                ),
               ),
 
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Main Metrics Grid
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Main Metrics Grid
                   Row(
                     children: [
                       Expanded(
@@ -534,7 +644,7 @@ class _RunDetailScreenState extends ConsumerState<RunDetailScreen> {
                           Icons.map,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: _buildStatCard(
                           'Moving Time',
@@ -543,7 +653,21 @@ class _RunDetailScreenState extends ConsumerState<RunDetailScreen> {
                           Icons.timer,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildStatCard(
+                          'Idle Time',
+                          _formatDuration(idleSeconds),
+                          '',
+                          Icons.timer_outlined,
+                          color: Colors.amber,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
                       Expanded(
                         child: _buildStatCard(
                           'Pause Time',
@@ -553,11 +677,16 @@ class _RunDetailScreenState extends ConsumerState<RunDetailScreen> {
                           color: Colors.orange,
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildStatCard(
+                          'Total Time',
+                          _formatDuration(s.durationSeconds),
+                          '',
+                          Icons.access_time,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: _buildStatCard(
                           'Avg Pace',
@@ -566,7 +695,11 @@ class _RunDetailScreenState extends ConsumerState<RunDetailScreen> {
                           Icons.speed,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
                       Expanded(
                         child: _buildStatCard(
                           'Avg Cadence',
@@ -575,7 +708,16 @@ class _RunDetailScreenState extends ConsumerState<RunDetailScreen> {
                           Icons.bolt,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildStatCard(
+                          'Max Cadence',
+                          s.maxCadence.toStringAsFixed(0),
+                          'SPM',
+                          Icons.flash_on,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: _buildStatCard(
                           'Calories',
@@ -586,27 +728,9 @@ class _RunDetailScreenState extends ConsumerState<RunDetailScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   Row(
                     children: [
-                      Expanded(
-                        child: _buildStatCard(
-                          'Target Cadence',
-                          s.targetCadence.toStringAsFixed(0),
-                          'SPM',
-                          Icons.track_changes,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildStatCard(
-                          'Max Cadence',
-                          s.maxCadence.toStringAsFixed(0),
-                          'SPM',
-                          Icons.flash_on,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
                       Expanded(
                         child: _buildStatCard(
                           'Steps',
@@ -615,44 +739,98 @@ class _RunDetailScreenState extends ConsumerState<RunDetailScreen> {
                           Icons.directions_walk,
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      const Expanded(child: SizedBox()),
+                      const SizedBox(width: 8),
+                      const Expanded(child: SizedBox()),
                     ],
                   ),
 
                   const SizedBox(height: 24),
-                  const Text(
-                    'Cadence & Pace Profile',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Pace Profile',
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          Container(
+                            width: 12,
+                            height: 3,
+                            decoration: BoxDecoration(
+                              color: AppColors.traceCalm,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Text(
+                            'Pace (min/km)',
+                            style: TextStyle(
+                              color: AppColors.textMuted,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
 
-                  // Custom Chart for Cadence vs Target over points
-                  Container(
-                    height: 180,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfacePanel,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.hairline),
-                    ),
-                    child: _points.length < 2
-                        ? const Center(
-                            child: Text(
-                              'Not enough points for graph',
-                              style: TextStyle(color: AppColors.textMuted),
-                            ),
-                          )
-                        : CustomPaint(
-                            size: const Size(double.infinity, 140),
-                            painter: _CadenceGraphPainter(
-                              points: _points,
-                              targetCadence: s.targetCadence,
-                            ),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      return GestureDetector(
+                        onPanDown: (details) => _onGraphScrub(
+                            details.localPosition, constraints.maxWidth),
+                        onPanUpdate: (details) => _onGraphScrub(
+                            details.localPosition, constraints.maxWidth),
+                        onTapDown: (details) => _onGraphScrub(
+                            details.localPosition, constraints.maxWidth),
+                        child: Container(
+                          height: 180,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfacePanel,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppColors.hairline),
                           ),
+                          child: _points.length < 2
+                              ? const Center(
+                                  child: Text(
+                                    'Not enough points for graph',
+                                    style:
+                                        TextStyle(color: AppColors.textMuted),
+                                  ),
+                                )
+                              : CustomPaint(
+                                  size: Size(constraints.maxWidth, 156),
+                                  painter: _PaceGraphPainter(
+                                    points: _points,
+                                    animationProgress: _animationProgress,
+                                  ),
+                                ),
+                        ),
+                      );
+                    },
                   ),
+                  if (_points.isNotEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 4, left: 4),
+                      child: Text(
+                        'Tap or drag on graph to scrub route on map',
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 11,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
 
                   const SizedBox(height: 24),
                   const Text(
@@ -686,38 +864,168 @@ class _RunDetailScreenState extends ConsumerState<RunDetailScreen> {
                             ),
                             itemBuilder: (context, idx) {
                               final split = _splits[idx];
-                              return ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: AppColors.surfaceRaised,
-                                  child: Text(
-                                    'KM ${split.kilometer}',
-                                    style: const TextStyle(
-                                      color: AppColors.textPrimary,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
+                              final isFastest = split == fastestSplit;
+                              final isSlowest =
+                                  split == slowestSplit && _splits.length > 1;
+
+                              double barFactor = 1.0;
+                              if (fastestSplit != null &&
+                                  slowestSplit != null) {
+                                final minP = fastestSplit.avgPaceMinPerKm;
+                                final maxP = slowestSplit.avgPaceMinPerKm;
+                                if (maxP > minP) {
+                                  barFactor = 1.0 -
+                                      ((split.avgPaceMinPerKm - minP) /
+                                              (maxP - minP) *
+                                              0.7);
+                                  barFactor = barFactor.clamp(0.2, 1.0);
+                                }
+                              }
+
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 16,
+                                          backgroundColor:
+                                              AppColors.surfaceRaised,
+                                          child: Text(
+                                            '${split.kilometer}',
+                                            style: const TextStyle(
+                                              color: AppColors.textPrimary,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Text(
+                                                    'Pace: ${split.paceFormatted} /km',
+                                                    style: const TextStyle(
+                                                      color: AppColors
+                                                          .textPrimary,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
+                                                  if (isFastest) ...[
+                                                    const SizedBox(width: 8),
+                                                    Container(
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 6,
+                                                          vertical: 2),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors
+                                                            .green.shade900
+                                                            .withValues(
+                                                                alpha: 0.6),
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                                4),
+                                                        border: Border.all(
+                                                            color: Colors
+                                                                .green.shade400,
+                                                            width: 0.8),
+                                                      ),
+                                                      child: Text(
+                                                        'FASTEST',
+                                                        style: TextStyle(
+                                                          color: Colors
+                                                              .green.shade300,
+                                                          fontSize: 9,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ] else if (isSlowest) ...[
+                                                    const SizedBox(width: 8),
+                                                    Container(
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 6,
+                                                          vertical: 2),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors
+                                                            .amber.shade900
+                                                            .withValues(
+                                                                alpha: 0.6),
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                                4),
+                                                        border: Border.all(
+                                                            color: Colors
+                                                                .amber.shade400,
+                                                            width: 0.8),
+                                                      ),
+                                                      child: Text(
+                                                        'SLOWEST',
+                                                        style: TextStyle(
+                                                          color: Colors
+                                                              .amber.shade300,
+                                                          fontSize: 9,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                'Time: ${split.timeFormatted} • Cadence: ${split.avgCadence.toStringAsFixed(0)} SPM',
+                                                style: const TextStyle(
+                                                  color: AppColors.textMuted,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Text(
+                                          '${split.avgSpeedKmH.toStringAsFixed(1)} km/h',
+                                          style: const TextStyle(
+                                            color: AppColors.traceCalm,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                ),
-                                title: Text(
-                                  'Pace: ${split.paceFormatted} /km',
-                                  style: const TextStyle(
-                                    color: AppColors.textPrimary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  'Time: ${split.timeFormatted} • Cadence: ${split.avgCadence.toStringAsFixed(0)} SPM',
-                                  style: const TextStyle(
-                                    color: AppColors.textMuted,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                trailing: Text(
-                                  '${split.avgSpeedKmH.toStringAsFixed(1)} km/h',
-                                  style: const TextStyle(
-                                    color: AppColors.traceCalm,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                    const SizedBox(height: 8),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(2),
+                                      child: LinearProgressIndicator(
+                                        value: barFactor,
+                                        minHeight: 4,
+                                        backgroundColor:
+                                            AppColors.surfaceRaised,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                          isFastest
+                                              ? Colors.green.shade400
+                                              : (isSlowest
+                                                  ? Colors.amber.shade400
+                                                  : AppColors.traceCalm),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               );
                             },
@@ -727,8 +1035,8 @@ class _RunDetailScreenState extends ConsumerState<RunDetailScreen> {
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -754,11 +1062,15 @@ class _RunDetailScreenState extends ConsumerState<RunDetailScreen> {
             children: [
               Icon(icon, size: 14, color: color ?? AppColors.textMuted),
               const SizedBox(width: 4),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: AppColors.textMuted,
-                  fontSize: 11,
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 11,
+                  ),
                 ),
               ),
             ],
@@ -794,69 +1106,164 @@ class _RunDetailScreenState extends ConsumerState<RunDetailScreen> {
   }
 }
 
-class _CadenceGraphPainter extends CustomPainter {
+class _PaceGraphPainter extends CustomPainter {
   final List<GpsTrackPoint> points;
-  final double targetCadence;
+  final double animationProgress;
 
-  _CadenceGraphPainter({required this.points, required this.targetCadence});
+  _PaceGraphPainter({
+    required this.points,
+    required this.animationProgress,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     if (points.isEmpty) return;
 
-    final paintLine = Paint()
-      ..color = AppColors.traceCalm
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke;
+    const leftPadding = 36.0;
+    const rightPadding = 10.0;
+    const topPadding = 16.0;
+    const bottomPadding = 20.0;
 
-    final paintTarget = Paint()
-      ..color = Colors.amber.withValues(alpha: 0.7)
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
+    final chartWidth = size.width - leftPadding - rightPadding;
+    final chartHeight = size.height - topPadding - bottomPadding;
 
-    final path = ui.Path();
-    final targetPath = ui.Path();
+    if (chartWidth <= 0 || chartHeight <= 0) return;
 
-    double minCadence = 100.0;
-    double maxCadence = 220.0;
-    for (var p in points) {
-      if (p.cadenceSpm < minCadence) minCadence = p.cadenceSpm;
-      if (p.cadenceSpm > maxCadence) maxCadence = p.cadenceSpm;
+    // Convert points to pace values (min/km)
+    final paceValues = <double>[];
+    for (final p in points) {
+      double pace = p.speedKmH > 0.5 ? (60.0 / p.speedKmH) : 15.0;
+      pace = pace.clamp(2.0, 15.0);
+      paceValues.add(pace);
     }
-    minCadence = (minCadence - 10).clamp(0, 300);
-    maxCadence = (maxCadence + 10).clamp(150, 300);
-    final range = maxCadence - minCadence;
 
-    final width = size.width;
-    final height = size.height;
+    double minPace = paceValues.reduce((a, b) => a < b ? a : b);
+    double maxPace = paceValues.reduce((a, b) => a > b ? a : b);
 
-    for (int i = 0; i < points.length; i++) {
-      final x = (i / (points.length - 1)) * width;
-      final normalizedCadence =
-          (points[i].cadenceSpm - minCadence) / (range == 0 ? 1 : range);
-      final y = height - (normalizedCadence * height);
+    if ((maxPace - minPace) < 1.0) {
+      minPace = (minPace - 0.5).clamp(2.0, 15.0);
+      maxPace = (maxPace + 0.5).clamp(2.0, 15.0);
+    }
+
+    final range = maxPace - minPace;
+
+    final gridPaint = Paint()
+      ..color = AppColors.hairline
+      ..strokeWidth = 1.0;
+
+    const textStyle = TextStyle(
+      color: AppColors.textMuted,
+      fontSize: 9,
+    );
+
+    // Top grid line & label (Fastest Pace)
+    final topTextPainter = TextPainter(
+      text: TextSpan(text: '${_formatPaceString(minPace)}/k', style: textStyle),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    topTextPainter.paint(canvas, Offset(0, topPadding - 6));
+    canvas.drawLine(
+      const Offset(leftPadding, topPadding),
+      Offset(size.width - rightPadding, topPadding),
+      gridPaint,
+    );
+
+    // Bottom grid line & label (Slowest Pace)
+    final bottomTextPainter = TextPainter(
+      text: TextSpan(text: '${_formatPaceString(maxPace)}/k', style: textStyle),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    bottomTextPainter.paint(
+      canvas,
+      Offset(0, topPadding + chartHeight - 6),
+    );
+    canvas.drawLine(
+      Offset(leftPadding, topPadding + chartHeight),
+      Offset(size.width - rightPadding, topPadding + chartHeight),
+      gridPaint,
+    );
+
+    // Construct curve path
+    final path = ui.Path();
+    final fillPath = ui.Path();
+
+    final pointsCount = points.length;
+
+    for (int i = 0; i < pointsCount; i++) {
+      final x = leftPadding + (i / (pointsCount - 1)) * chartWidth;
+      final normPace = (paceValues[i] - minPace) / range;
+      final y = topPadding + (normPace * chartHeight);
 
       if (i == 0) {
         path.moveTo(x, y);
+        fillPath.moveTo(x, topPadding + chartHeight);
+        fillPath.lineTo(x, y);
       } else {
         path.lineTo(x, y);
-      }
-
-      // Target line y
-      final normTarget =
-          (targetCadence - minCadence) / (range == 0 ? 1 : range);
-      final targetY = height - (normTarget * height);
-      if (i == 0) {
-        targetPath.moveTo(0, targetY);
-      } else {
-        targetPath.lineTo(width, targetY);
+        fillPath.lineTo(x, y);
       }
     }
 
-    canvas.drawPath(targetPath, paintTarget);
-    canvas.drawPath(path, paintLine);
+    fillPath.lineTo(leftPadding + chartWidth, topPadding + chartHeight);
+    fillPath.close();
+
+    // Area fill
+    final fillPaint = Paint()
+      ..shader = ui.Gradient.linear(
+        const Offset(0, topPadding),
+        Offset(0, topPadding + chartHeight),
+        [
+          AppColors.traceCalm.withValues(alpha: 0.35),
+          AppColors.traceCalm.withValues(alpha: 0.02),
+        ],
+      );
+    canvas.drawPath(fillPath, fillPaint);
+
+    // Pace Line
+    final linePaint = Paint()
+      ..color = AppColors.traceCalm
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(path, linePaint);
+
+    // Scrubber vertical line & indicator dot
+    if (animationProgress > 0.0) {
+      final activeIdx = (animationProgress * (pointsCount - 1))
+          .round()
+          .clamp(0, pointsCount - 1);
+      final activeX =
+          leftPadding + (activeIdx / (pointsCount - 1)) * chartWidth;
+      final activeNorm = (paceValues[activeIdx] - minPace) / range;
+      final activeY = topPadding + (activeNorm * chartHeight);
+
+      final scrubberPaint = Paint()
+        ..color = Colors.white.withValues(alpha: 0.8)
+        ..strokeWidth = 1.5;
+      canvas.drawLine(
+        Offset(activeX, topPadding),
+        Offset(activeX, topPadding + chartHeight),
+        scrubberPaint,
+      );
+
+      final dotOuterPaint = Paint()..color = Colors.white;
+      final dotInnerPaint = Paint()..color = AppColors.traceCalm;
+      canvas.drawCircle(Offset(activeX, activeY), 5, dotOuterPaint);
+      canvas.drawCircle(Offset(activeX, activeY), 3, dotInnerPaint);
+    }
+  }
+
+  String _formatPaceString(double pace) {
+    if (pace <= 0 || pace.isNaN || pace.isInfinite) return '--:--';
+    final m = pace.floor();
+    final s = ((pace - m) * 60).round();
+    return '$m:${s.toString().padLeft(2, '0')}';
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant _PaceGraphPainter oldDelegate) {
+    return oldDelegate.animationProgress != animationProgress ||
+        oldDelegate.points != points;
+  }
 }
