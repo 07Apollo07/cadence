@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
 import 'location_service.dart';
 import 'gps_point_filter.dart';
 import 'route_aggregator.dart';
@@ -29,6 +30,8 @@ class GpsSessionState {
   final Duration elapsedDuration;
   final double? lastRawAccuracy;
   final bool hasReceivedAnyFix;
+  final bool isGpsEnabled;
+  final bool isGpsDropped;
   final String? errorMessage;
   final WorkoutSession? recentResumableSession;
 
@@ -46,6 +49,8 @@ class GpsSessionState {
     this.elapsedDuration = Duration.zero,
     this.lastRawAccuracy,
     this.hasReceivedAnyFix = false,
+    this.isGpsEnabled = true,
+    this.isGpsDropped = false,
     this.errorMessage,
     this.recentResumableSession,
   });
@@ -72,6 +77,8 @@ class GpsSessionState {
     Duration? elapsedDuration,
     double? lastRawAccuracy,
     bool? hasReceivedAnyFix,
+    bool? isGpsEnabled,
+    bool? isGpsDropped,
     String? errorMessage,
     WorkoutSession? recentResumableSession,
     bool clearResumableSession = false,
@@ -90,6 +97,8 @@ class GpsSessionState {
       elapsedDuration: elapsedDuration ?? this.elapsedDuration,
       lastRawAccuracy: lastRawAccuracy ?? this.lastRawAccuracy,
       hasReceivedAnyFix: hasReceivedAnyFix ?? this.hasReceivedAnyFix,
+      isGpsEnabled: isGpsEnabled ?? this.isGpsEnabled,
+      isGpsDropped: isGpsDropped ?? this.isGpsDropped,
       errorMessage: errorMessage,
       recentResumableSession: clearResumableSession
           ? null
@@ -104,6 +113,7 @@ final locationServiceProvider = Provider<LocationService>((ref) {
 
 class GpsController extends Notifier<GpsSessionState> {
   StreamSubscription<PositionData>? _positionSubscription;
+  StreamSubscription<ServiceStatus>? _serviceStatusSubscription;
   Timer? _uiTicker;
   final GpsPointFilter _filter = GpsPointFilter();
   final RouteAggregator _aggregator = RouteAggregator();
@@ -112,12 +122,39 @@ class GpsController extends Notifier<GpsSessionState> {
   GpsSessionState build() {
     ref.onDispose(() {
       _positionSubscription?.cancel();
+      _serviceStatusSubscription?.cancel();
       _uiTicker?.cancel();
     });
-    // Check for resumable sessions within 1.5h on initialize and start listening to location
+    final locationService = ref.read(locationServiceProvider);
+
+    _serviceStatusSubscription = locationService
+        .getServiceStatusStream()
+        .listen((status) {
+          if (status == ServiceStatus.disabled) {
+            state = state.copyWith(
+              isGpsEnabled: false,
+              isGpsDropped: state.isTracking,
+              errorMessage: 'GPS service was turned off.',
+            );
+          } else if (status == ServiceStatus.enabled) {
+            state = state.copyWith(
+              isGpsEnabled: true,
+              isGpsDropped: false,
+              errorMessage: null,
+            );
+          }
+        });
+
     Future.microtask(() async {
+      final enabled = await locationService.isLocationServiceEnabled();
+      if (!enabled) {
+        state = state.copyWith(
+          isGpsEnabled: false,
+          errorMessage: 'GPS is disabled.',
+        );
+      }
       await checkResumableSession();
-      _startListening(ref.read(locationServiceProvider));
+      _startListening(locationService);
     });
     return const GpsSessionState(
       status: GpsStatus.idle,
@@ -126,6 +163,36 @@ class GpsController extends Notifier<GpsSessionState> {
       actualCadenceSpm: 0.0,
       routePoints: [],
     );
+  }
+
+  Future<void> checkAndRetryGps() async {
+    final locationService = ref.read(locationServiceProvider);
+    final serviceEnabled = await locationService.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      state = state.copyWith(
+        isGpsEnabled: false,
+        errorMessage:
+            'Location services are still disabled. Please turn on GPS.',
+      );
+      return;
+    }
+
+    final hasPermission = await locationService.checkAndRequestPermission();
+    if (!hasPermission) {
+      state = state.copyWith(
+        isGpsEnabled: true,
+        errorMessage: 'Location permission denied or GPS disabled.',
+      );
+      return;
+    }
+
+    state = state.copyWith(
+      isGpsEnabled: true,
+      isGpsDropped: false,
+      errorMessage: null,
+    );
+
+    _startListening(locationService);
   }
 
   Future<void> checkResumableSession() async {
@@ -146,9 +213,19 @@ class GpsController extends Notifier<GpsSessionState> {
 
   Future<void> startTracking() async {
     final locationService = ref.read(locationServiceProvider);
+    final serviceEnabled = await locationService.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      state = state.copyWith(
+        isGpsEnabled: false,
+        errorMessage: 'Location services are disabled. Please enable GPS.',
+      );
+      return;
+    }
+
     final hasPermission = await locationService.checkAndRequestPermission();
     if (!hasPermission) {
       state = state.copyWith(
+        isGpsEnabled: true,
         errorMessage: 'Location permission denied or GPS disabled.',
       );
       return;
@@ -169,6 +246,8 @@ class GpsController extends Notifier<GpsSessionState> {
       idleDuration: Duration.zero,
       pauseDuration: Duration.zero,
       elapsedDuration: Duration.zero,
+      isGpsEnabled: true,
+      isGpsDropped: false,
       errorMessage: null,
       clearResumableSession: true,
     );
@@ -180,9 +259,19 @@ class GpsController extends Notifier<GpsSessionState> {
 
   Future<void> resumePreviousSession(WorkoutSession session) async {
     final locationService = ref.read(locationServiceProvider);
+    final serviceEnabled = await locationService.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      state = state.copyWith(
+        isGpsEnabled: false,
+        errorMessage: 'Location services are disabled. Please enable GPS.',
+      );
+      return;
+    }
+
     final hasPermission = await locationService.checkAndRequestPermission();
     if (!hasPermission) {
       state = state.copyWith(
+        isGpsEnabled: true,
         errorMessage: 'Location permission denied or GPS disabled.',
       );
       return;
@@ -244,9 +333,19 @@ class GpsController extends Notifier<GpsSessionState> {
     if (state.status != GpsStatus.paused) return;
 
     final locationService = ref.read(locationServiceProvider);
+    final serviceEnabled = await locationService.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      state = state.copyWith(
+        isGpsEnabled: false,
+        errorMessage: 'Location services are disabled. Please enable GPS.',
+      );
+      return;
+    }
+
     final hasPermission = await locationService.checkAndRequestPermission();
     if (!hasPermission) {
       state = state.copyWith(
+        isGpsEnabled: true,
         errorMessage: 'Location permission denied or GPS disabled.',
       );
       return;
@@ -260,6 +359,8 @@ class GpsController extends Notifier<GpsSessionState> {
       idleDuration: _aggregator.idleDuration,
       pauseDuration: _aggregator.pauseDuration,
       elapsedDuration: _aggregator.elapsedDuration,
+      isGpsEnabled: true,
+      isGpsDropped: false,
       errorMessage: null,
     );
 
@@ -288,6 +389,11 @@ class GpsController extends Notifier<GpsSessionState> {
         .getPositionStream(isTracking: state.isTracking)
         .listen(
           (pos) {
+            state = state.copyWith(
+              isGpsEnabled: true,
+              isGpsDropped: false,
+              errorMessage: null,
+            );
             final loc = LatLng(pos.latitude, pos.longitude);
             if (state.isIdle || state.isPaused) {
               state = state.copyWith(

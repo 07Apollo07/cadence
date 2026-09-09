@@ -39,7 +39,10 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
 
       Position? pos = await Geolocator.getLastKnownPosition();
       pos ??= await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium, timeLimit: Duration(seconds: 4)),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 4),
+        ),
       );
 
       if (mounted) {
@@ -56,9 +59,9 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
   Widget build(BuildContext context) {
     final gpsState = ref.watch(gpsControllerProvider);
     final cadenceState = ref.watch(cadenceProvider);
-    
-    final center = gpsState.routePoints.isNotEmpty 
-        ? gpsState.routePoints.last 
+
+    final center = gpsState.routePoints.isNotEmpty
+        ? gpsState.routePoints.last
         : _initialCenter;
 
     return Scaffold(
@@ -75,22 +78,24 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
               children: [
                 FlutterMap(
                   mapController: _mapController,
-                  options: MapOptions(
-                    initialCenter: center,
-                    initialZoom: 17.0,
-                  ),
+                  options: MapOptions(initialCenter: center, initialZoom: 17.0),
                   children: [
                     TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'com.cadence.app',
                     ),
                     CircleLayer(
                       circles: [
                         CircleMarker(
                           point: center,
-                          color: cadenceState.activeColor.withValues(alpha: 0.15),
+                          color: cadenceState.activeColor.withValues(
+                            alpha: 0.15,
+                          ),
                           borderStrokeWidth: 1.5,
-                          borderColor: cadenceState.activeColor.withValues(alpha: 0.6),
+                          borderColor: cadenceState.activeColor.withValues(
+                            alpha: 0.6,
+                          ),
                           useRadiusInMeter: true,
                           radius: gpsState.lastRawAccuracy ?? 15.0,
                         ),
@@ -143,7 +148,10 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
                         foregroundColor: AppColors.textPrimary,
                         onPressed: () {
                           final currentZoom = _mapController.camera.zoom;
-                          _mapController.move(_mapController.camera.center, currentZoom + 1);
+                          _mapController.move(
+                            _mapController.camera.center,
+                            currentZoom + 1,
+                          );
                         },
                         child: const Icon(Icons.add),
                       ),
@@ -154,7 +162,10 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
                         foregroundColor: AppColors.textPrimary,
                         onPressed: () {
                           final currentZoom = _mapController.camera.zoom;
-                          _mapController.move(_mapController.camera.center, currentZoom - 1);
+                          _mapController.move(
+                            _mapController.camera.center,
+                            currentZoom - 1,
+                          );
                         },
                         child: const Icon(Icons.remove),
                       ),
@@ -164,8 +175,8 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
                         backgroundColor: AppColors.surfacePanel,
                         foregroundColor: cadenceState.activeColor,
                         onPressed: () {
-                          final target = gpsState.routePoints.isNotEmpty 
-                              ? gpsState.routePoints.last 
+                          final target = gpsState.routePoints.isNotEmpty
+                              ? gpsState.routePoints.last
                               : _initialCenter;
                           _mapController.move(target, 17.0);
                         },
@@ -185,7 +196,8 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
                         backgroundColor: AppColors.surfacePanel,
                         foregroundColor: AppColors.textPrimary,
                         onPressed: () {
-                          final currentRotation = _mapController.camera.rotation;
+                          final currentRotation =
+                              _mapController.camera.rotation;
                           _mapController.rotate(currentRotation - 15);
                         },
                         child: const Icon(Icons.rotate_left),
@@ -206,7 +218,8 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
                         backgroundColor: AppColors.surfacePanel,
                         foregroundColor: AppColors.textPrimary,
                         onPressed: () {
-                          final currentRotation = _mapController.camera.rotation;
+                          final currentRotation =
+                              _mapController.camera.rotation;
                           _mapController.rotate(currentRotation + 15);
                         },
                         child: const Icon(Icons.rotate_right),
@@ -218,7 +231,10 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
                   top: 8,
                   left: 8,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.surfacePanel.withValues(alpha: 0.85),
                       borderRadius: BorderRadius.circular(4),
@@ -226,7 +242,10 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
                     ),
                     child: const Text(
                       '© OpenStreetMap contributors',
-                      style: TextStyle(color: AppColors.textMuted, fontSize: 10),
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 10,
+                      ),
                     ),
                   ),
                 ),
@@ -245,24 +264,98 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (!gpsState.isGpsEnabled || gpsState.isGpsDropped) ...[
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceRaised,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppColors.statusDanger.withValues(alpha: 0.6),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.location_off,
+                                color: AppColors.statusDanger,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  gpsState.isGpsDropped
+                                      ? 'GPS Signal Dropped / Turned Off'
+                                      : 'GPS is Disabled',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            gpsState.errorMessage ??
+                                'Please enable GPS location services to continue tracking.',
+                            style: const TextStyle(
+                              color: AppColors.textMuted,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              ref
+                                  .read(gpsControllerProvider.notifier)
+                                  .checkAndRetryGps();
+                            },
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('RETRY GPS'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.statusDanger,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   const TargetActualPanel(),
                   const SizedBox(height: 12),
                   if (gpsState.isIdle) ...[
                     if (gpsState.recentResumableSession != null) ...[
-                      _buildResumableRunBanner(gpsState.recentResumableSession!),
+                      _buildResumableRunBanner(
+                        gpsState.recentResumableSession!,
+                      ),
                       const SizedBox(height: 10),
                     ],
                     ElevatedButton.icon(
                       onPressed: () {
-                        ref.read(gpsControllerProvider.notifier).startTracking();
+                        ref
+                            .read(gpsControllerProvider.notifier)
+                            .startTracking();
                       },
                       icon: const Icon(Icons.play_arrow),
-                      label: Text(gpsState.recentResumableSession != null ? 'START NEW GPS RUN' : 'START GPS RUN'),
+                      label: Text(
+                        gpsState.recentResumableSession != null
+                            ? 'START NEW GPS RUN'
+                            : 'START GPS RUN',
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: cadenceState.activeColor,
                         foregroundColor: Colors.black,
                         minimumSize: const Size(double.infinity, 50),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         textStyle: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -272,7 +365,9 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
                         Expanded(
                           child: ElevatedButton.icon(
                             onPressed: () {
-                              ref.read(gpsControllerProvider.notifier).pauseTracking();
+                              ref
+                                  .read(gpsControllerProvider.notifier)
+                                  .pauseTracking();
                             },
                             icon: const Icon(Icons.pause),
                             label: const Text('PAUSE'),
@@ -280,8 +375,12 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
                               backgroundColor: Colors.orange,
                               foregroundColor: Colors.black,
                               minimumSize: const Size(0, 50),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              textStyle: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -289,7 +388,9 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
                         Expanded(
                           child: ElevatedButton.icon(
                             onPressed: () {
-                              ref.read(gpsControllerProvider.notifier).stopTracking();
+                              ref
+                                  .read(gpsControllerProvider.notifier)
+                                  .stopTracking();
                             },
                             icon: const Icon(Icons.stop),
                             label: const Text('STOP'),
@@ -297,8 +398,12 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
                               backgroundColor: AppColors.statusDanger,
                               foregroundColor: Colors.white,
                               minimumSize: const Size(0, 50),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              textStyle: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -310,7 +415,9 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
                         Expanded(
                           child: ElevatedButton.icon(
                             onPressed: () {
-                              ref.read(gpsControllerProvider.notifier).resumeTracking();
+                              ref
+                                  .read(gpsControllerProvider.notifier)
+                                  .resumeTracking();
                             },
                             icon: const Icon(Icons.play_arrow),
                             label: const Text('RESUME'),
@@ -318,8 +425,12 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
                               backgroundColor: cadenceState.activeColor,
                               foregroundColor: Colors.black,
                               minimumSize: const Size(0, 50),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              textStyle: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -327,7 +438,9 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
                         Expanded(
                           child: ElevatedButton.icon(
                             onPressed: () {
-                              ref.read(gpsControllerProvider.notifier).stopTracking();
+                              ref
+                                  .read(gpsControllerProvider.notifier)
+                                  .stopTracking();
                             },
                             icon: const Icon(Icons.stop),
                             label: const Text('STOP'),
@@ -335,8 +448,12 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
                               backgroundColor: AppColors.statusDanger,
                               foregroundColor: Colors.white,
                               minimumSize: const Size(0, 50),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              textStyle: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -353,7 +470,9 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
 
   Widget _buildResumableRunBanner(dynamic session) {
     final diff = DateTime.now().difference(session.startTime);
-    final hoursAgo = diff.inHours > 0 ? '${diff.inHours}h ago' : '${diff.inMinutes}m ago';
+    final hoursAgo = diff.inHours > 0
+        ? '${diff.inHours}h ago'
+        : '${diff.inMinutes}m ago';
     final dist = session.distanceKm.toStringAsFixed(2);
     final movingMin = (session.movingDurationSeconds / 60).floor();
     final movingSec = (session.movingDurationSeconds % 60);
@@ -377,26 +496,40 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
               children: [
                 Text(
                   'Recent Run Found ($hoursAgo)',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
                 ),
                 Text(
                   '$dist km • $timeStr moving',
-                  style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                  style: const TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
           ),
           TextButton(
             onPressed: () {
-              ref.read(gpsControllerProvider.notifier).resumePreviousSession(session);
+              ref
+                  .read(gpsControllerProvider.notifier)
+                  .resumePreviousSession(session);
             },
             style: TextButton.styleFrom(
               backgroundColor: Colors.amber,
               foregroundColor: Colors.black,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
-            child: const Text('CONTINUE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            child: const Text(
+              'CONTINUE',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.close, size: 18, color: AppColors.textMuted),
@@ -412,7 +545,8 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
   }
 
   Widget _buildGpsSignalBadge(dynamic gpsState) {
-    final hasFix = gpsState.hasReceivedAnyFix && gpsState.lastRawAccuracy != null;
+    final hasFix =
+        gpsState.hasReceivedAnyFix && gpsState.lastRawAccuracy != null;
     final accuracy = gpsState.lastRawAccuracy ?? 0.0;
 
     Color badgeColor;
@@ -455,11 +589,14 @@ class _GpsScreenState extends ConsumerState<GpsScreen> {
           const SizedBox(width: 6),
           Text(
             label,
-            style: TextStyle(color: badgeColor, fontSize: 11, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: badgeColor,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
     );
   }
 }
-

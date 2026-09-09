@@ -31,6 +31,10 @@ class TargetActualPanel extends ConsumerWidget {
     if (gpsState.isPaused) {
       deltaText = 'Session Paused';
       deltaColor = Colors.orange;
+    } else if (gpsState.isSessionActive &&
+        (!gpsState.isGpsEnabled || gpsState.isGpsDropped)) {
+      deltaText = gpsState.isGpsDropped ? 'GPS Signal Dropped' : 'GPS Disabled';
+      deltaColor = AppColors.statusDanger;
     } else if (actual > 0) {
       if (delta > 2) {
         deltaText = '+${delta.toStringAsFixed(0)} SPM (Fast)';
@@ -49,8 +53,10 @@ class TargetActualPanel extends ConsumerWidget {
       } else if (!gpsState.hasReceivedAnyFix) {
         deltaText = 'Searching for GPS signal...';
         deltaColor = AppColors.textMuted;
-      } else if (gpsState.lastRawAccuracy != null && gpsState.lastRawAccuracy! > 20.0) {
-        deltaText = 'Accuracy: ${gpsState.lastRawAccuracy!.toStringAsFixed(0)}m (Need <20m)';
+      } else if (gpsState.lastRawAccuracy != null &&
+          gpsState.lastRawAccuracy! > 20.0) {
+        deltaText =
+            'Accuracy: ${gpsState.lastRawAccuracy!.toStringAsFixed(0)}m (Need <20m)';
         deltaColor = AppColors.statusDanger;
       } else {
         deltaText = 'GPS Locked (Standing still / ready)';
@@ -70,7 +76,12 @@ class TargetActualPanel extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildMetricColumn('Target', '$target', 'SPM', AppColors.textPrimary),
+              _buildMetricColumn(
+                'Target',
+                '$target',
+                'SPM',
+                AppColors.textPrimary,
+              ),
               Container(width: 1, height: 40, color: AppColors.hairline),
               _buildMetricColumn(
                 'Actual',
@@ -79,7 +90,12 @@ class TargetActualPanel extends ConsumerWidget {
                 cadenceState.activeColor,
               ),
               Container(width: 1, height: 40, color: AppColors.hairline),
-              _buildMetricColumn('Distance', gpsState.distanceKm.toStringAsFixed(2), 'km', AppColors.textPrimary),
+              _buildMetricColumn(
+                'Distance',
+                gpsState.distanceKm.toStringAsFixed(2),
+                'km',
+                AppColors.textPrimary,
+              ),
             ],
           ),
           if (gpsState.isSessionActive) ...[
@@ -89,23 +105,33 @@ class TargetActualPanel extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildTimeColumn('Moving', _formatDuration(gpsState.movingDuration), AppColors.textPrimary),
+                _buildTimeColumn(
+                  'Moving',
+                  _formatDuration(gpsState.movingDuration),
+                  AppColors.textPrimary,
+                ),
                 Container(width: 1, height: 28, color: AppColors.hairline),
                 _buildTimeColumn(
                   'Idle',
                   _formatDuration(gpsState.idleDuration),
-                  gpsState.idleDuration.inSeconds > 0 ? AppColors.textPrimary : AppColors.textMuted,
+                  gpsState.idleDuration.inSeconds > 0
+                      ? AppColors.textPrimary
+                      : AppColors.textMuted,
                 ),
                 Container(width: 1, height: 28, color: AppColors.hairline),
                 _buildTimeColumn(
                   'Pause',
                   _formatDuration(gpsState.pauseDuration),
-                  gpsState.pauseDuration.inSeconds > 0 ? Colors.orange : AppColors.textMuted,
+                  gpsState.pauseDuration.inSeconds > 0
+                      ? Colors.orange
+                      : AppColors.textMuted,
                 ),
                 Container(width: 1, height: 28, color: AppColors.hairline),
                 _buildTimeColumn(
                   'Pace',
-                  gpsState.currentSpeedKmH > 0 ? '${(60.0 / gpsState.currentSpeedKmH).toStringAsFixed(1)} min/km' : '--',
+                  gpsState.currentSpeedKmH > 0
+                      ? '${(60.0 / gpsState.currentSpeedKmH).toStringAsFixed(1)} min/km'
+                      : '--',
                   AppColors.textPrimary,
                 ),
               ],
@@ -118,12 +144,21 @@ class TargetActualPanel extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                gpsState.isSessionActive ? 'Total: ${_formatDuration(gpsState.totalDuration)}' : 'GPS Outdoor Mode',
-                style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                gpsState.isSessionActive
+                    ? 'Total: ${_formatDuration(gpsState.totalDuration)}'
+                    : 'GPS Outdoor Mode',
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 12,
+                ),
               ),
               Text(
                 deltaText,
-                style: TextStyle(color: deltaColor, fontWeight: FontWeight.bold, fontSize: 12),
+                style: TextStyle(
+                  color: deltaColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
               ),
             ],
           ),
@@ -131,7 +166,10 @@ class TargetActualPanel extends ConsumerWidget {
             const SizedBox(height: 8),
             Text(
               gpsState.errorMessage!,
-              style: const TextStyle(color: AppColors.statusDanger, fontSize: 12),
+              style: const TextStyle(
+                color: AppColors.statusDanger,
+                fontSize: 12,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -143,25 +181,53 @@ class TargetActualPanel extends ConsumerWidget {
   Widget _buildTimeColumn(String label, String value, Color color) {
     return Column(
       children: [
-        Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+        Text(
+          label,
+          style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+        ),
         const SizedBox(height: 2),
-        Text(value, style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.w600)),
+        Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildMetricColumn(String label, String value, String unit, Color valueColor) {
+  Widget _buildMetricColumn(
+    String label,
+    String value,
+    String unit,
+    Color valueColor,
+  ) {
     return Column(
       children: [
-        Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+        Text(
+          label,
+          style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+        ),
         const SizedBox(height: 4),
         Row(
           crossAxisAlignment: CrossAxisAlignment.baseline,
           textBaseline: TextBaseline.alphabetic,
           children: [
-            Text(value, style: TextStyle(color: valueColor, fontSize: 24, fontWeight: FontWeight.bold)),
+            Text(
+              value,
+              style: TextStyle(
+                color: valueColor,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(width: 2),
-            Text(unit, style: const TextStyle(color: AppColors.textMuted, fontSize: 10)),
+            Text(
+              unit,
+              style: const TextStyle(color: AppColors.textMuted, fontSize: 10),
+            ),
           ],
         ),
       ],

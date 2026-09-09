@@ -3,7 +3,7 @@ class GpsConstants {
   static const double maxAcceptableAccuracyM = 20.0;
 
   /// Minimum distance in meters between accepted points to filter out stationary jitter.
-  static const double minDistanceFilterM = 2.0;
+  static const double minDistanceFilterM = 3.0;
 
   /// Default map initial zoom.
   static const double defaultMapZoom = 15.0;

@@ -19,6 +19,8 @@ class PositionData {
 
 abstract class LocationService {
   Future<bool> checkAndRequestPermission();
+  Future<bool> isLocationServiceEnabled();
+  Stream<ServiceStatus> getServiceStatusStream();
   Stream<PositionData> getPositionStream({bool isTracking = false});
 }
 
@@ -51,9 +53,9 @@ class GeolocatorLocationService implements LocationService {
   @override
   Stream<PositionData> getPositionStream({bool isTracking = false}) {
     final LocationSettings locationSettings;
-    final int distanceFilter = isTracking ? 1 : 5;
+    final int distanceFilter = isTracking ? 3 : 5;
     final Duration intervalDuration = isTracking
-        ? const Duration(seconds: 1)
+        ? const Duration(seconds: 3)
         : const Duration(seconds: 5);
     final LocationAccuracy accuracy = LocationAccuracy.high;
 
@@ -96,6 +98,16 @@ class GeolocatorLocationService implements LocationService {
       },
     );
   }
+
+  @override
+  Future<bool> isLocationServiceEnabled() async {
+    return await Geolocator.isLocationServiceEnabled();
+  }
+
+  @override
+  Stream<ServiceStatus> getServiceStatusStream() {
+    return Geolocator.getServiceStatusStream();
+  }
 }
 
 class FakeLocationService implements LocationService {
@@ -105,6 +117,12 @@ class FakeLocationService implements LocationService {
 
   @override
   Future<bool> checkAndRequestPermission() async => true;
+
+  @override
+  Future<bool> isLocationServiceEnabled() async => true;
+
+  @override
+  Stream<ServiceStatus> getServiceStatusStream() => const Stream.empty();
 
   @override
   Stream<PositionData> getPositionStream({bool isTracking = false}) async* {
