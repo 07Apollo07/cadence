@@ -412,8 +412,11 @@ class GpsController extends Notifier<GpsSessionState> {
 
               if (filtered != null) {
                 double stride = 1.10;
+                MovementMode mode = MovementMode.jogging;
                 try {
-                  stride = ref.read(cadenceProvider).strideLengthMeters;
+                  final cadenceState = ref.read(cadenceProvider);
+                  stride = cadenceState.strideLengthMeters;
+                  mode = cadenceState.movementMode;
                 } catch (_) {}
 
                 final actualCadence = ActualCadenceCalculator.calculate(
@@ -423,7 +426,12 @@ class GpsController extends Notifier<GpsSessionState> {
                   strideLengthMeters: stride,
                 );
 
-                _aggregator.addPoint(filtered, cadenceSpm: actualCadence);
+                _aggregator.addPoint(
+                  filtered,
+                  cadenceSpm: actualCadence,
+                  movementMode: mode,
+                  strideLengthMeters: stride,
+                );
 
                 state = state.copyWith(
                   distanceKm: _aggregator.totalDistanceKm,

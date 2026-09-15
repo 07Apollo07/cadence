@@ -2,6 +2,7 @@ import 'package:latlong2/latlong.dart';
 import 'gps_point_filter.dart';
 import '../history/models/gps_track_point.dart';
 import '../history/models/km_split.dart';
+import '../../core/providers/cadence_provider.dart';
 
 class RouteAggregator {
   final List<LatLng> _points = [];
@@ -109,7 +110,12 @@ class RouteAggregator {
   }
 
   /// Adds a filtered point to the route aggregation.
-  void addPoint(FilteredPoint point, {double cadenceSpm = 0.0}) {
+  void addPoint(
+    FilteredPoint point, {
+    double cadenceSpm = 0.0,
+    MovementMode movementMode = MovementMode.jogging,
+    double strideLengthMeters = 0.75,
+  }) {
     final now = point.timestamp;
     _startTime ??= now;
 
@@ -148,6 +154,8 @@ class RouteAggregator {
         speedKmH: _currentSpeedKmH,
         cadenceSpm: cadenceSpm,
         distanceFromStartKm: totalDistanceKm,
+        movementMode: movementMode,
+        strideLengthMeters: strideLengthMeters,
       ),
     );
 
