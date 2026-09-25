@@ -408,6 +408,11 @@ class GpsController extends Notifier<GpsSessionState> {
                 accuracyMeters: pos.accuracy,
                 timestamp: pos.timestamp,
                 speed: pos.speed,
+                altitude: pos.altitude,
+                altitudeAccuracy: pos.altitudeAccuracy,
+                speedAccuracy: pos.speedAccuracy,
+                heading: pos.heading,
+                headingAccuracy: pos.headingAccuracy,
               );
 
               if (filtered != null) {

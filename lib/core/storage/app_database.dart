@@ -32,10 +32,40 @@ class WorkoutSamples extends Table {
   RealColumn get longitude => real().nullable()();
 }
 
-@DriftDatabase(tables: [WorkoutSessions, WorkoutSamples])
+class AnalyticsBestEfforts extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get sessionId => integer().references(WorkoutSessions, #id, onDelete: KeyAction.cascade)();
+  TextColumn get distanceBucket => text()();
+  IntColumn get bestDurationSeconds => integer()();
+  DateTimeColumn get computedAt => dateTime()();
+}
+
+@DriftDatabase(tables: [WorkoutSessions, WorkoutSamples, AnalyticsBestEfforts])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (Migrator m) async {
+          await m.createAll();
+        },
+        onUpgrade: (Migrator m, int from, int to) async {
+          if (from < 2) {
+            try { await m.addColumn(workoutSessions, workoutSessions.maxCadence); } catch (_) {}
+            try { await m.addColumn(workoutSessions, workoutSessions.movingDurationSeconds); } catch (_) {}
+            try { await m.addColumn(workoutSessions, workoutSessions.pauseDurationSeconds); } catch (_) {}
+            try { await m.addColumn(workoutSessions, workoutSessions.avgPaceMinPerKm); } catch (_) {}
+            try { await m.addColumn(workoutSessions, workoutSessions.bestPaceMinPerKm); } catch (_) {}
+            try { await m.addColumn(workoutSessions, workoutSessions.estimatedCalories); } catch (_) {}
+            try { await m.addColumn(workoutSessions, workoutSessions.estimatedSteps); } catch (_) {}
+            try { await m.addColumn(workoutSessions, workoutSessions.splitsJson); } catch (_) {}
+          }
+          if (from < 3) {
+            await m.createTable(analyticsBestEfforts);
+          }
+        },
+      );
 }

@@ -11,6 +11,7 @@ import 'features/metronome/beat_scheduler_provider.dart';
 import 'features/gps/gps_screen.dart';
 import 'features/gps/gps_controller.dart';
 import 'features/history/history_screen.dart';
+import 'features/analytics/analytics_screen.dart';
 import 'features/settings/settings_screen.dart';
 
 void main() async {
@@ -63,6 +64,7 @@ class _MainShellViewState extends ConsumerState<_MainShellView> {
     MetronomeScreen(),
     GpsScreen(),
     HistoryScreen(),
+    AnalyticsScreen(),
     SettingsScreen(),
   ];
 
@@ -106,35 +108,35 @@ class _MainShellViewState extends ConsumerState<_MainShellView> {
           ),
           Positioned(
             bottom: 24,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.surfacePanel.withValues(alpha: 0.95),
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(color: AppColors.hairline),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.5),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildTabButton(0, 'METRONOME'),
-                      _buildTabButton(1, 'GPS'),
-                      _buildTabButton(2, 'HISTORY'),
-                      _buildTabButton(3, 'SETTINGS'),
-                    ],
+            left: 16,
+            right: 16,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.surfacePanel.withValues(alpha: 0.95),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: AppColors.hairline),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.6),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
                   ),
-                ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  _buildTabButton(0, Icons.music_note_outlined, 'METRONOME'),
+                  _buildTabButton(1, Icons.navigation_outlined, 'GPS'),
+                  _buildTabButton(2, Icons.history, 'HISTORY'),
+                  _buildTabButton(3, Icons.analytics_outlined, 'ANALYTICS'),
+                  _buildTabButton(4, Icons.settings_outlined, 'SETTINGS'),
+                ],
               ),
             ),
           ),
@@ -143,38 +145,73 @@ class _MainShellViewState extends ConsumerState<_MainShellView> {
     );
   }
 
-  Widget _buildTabButton(int index, String label) {
+  Widget _buildTabButton(int index, IconData icon, String label) {
     final isSelected = _currentIndex == index;
-    return GestureDetector(
-      onTap: () {
-        // FocusManager.instance.primaryFocus?.unfocus();
-        setState(() {
-          _currentIndex = index;
-        });
-        HapticFeedback.selectionClick();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.surfaceRaised : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.3),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : [],
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? AppColors.textPrimary : AppColors.textMuted,
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.1,
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _currentIndex = index;
+          });
+          HapticFeedback.selectionClick();
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: isSelected
+                ? LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      const Color(0xFF283645), // Lighter top bevel highlight
+                      AppColors.surfaceRaised, // Base panel color
+                    ],
+                  )
+                : null,
+            border: isSelected
+                ? Border.all(color: AppColors.hairline, width: 1)
+                : Border.all(color: Colors.transparent, width: 1),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.6),
+                      blurRadius: 6,
+                      offset: const Offset(0, 4),
+                    ),
+                    BoxShadow(
+                      color: Colors.white.withValues(alpha: 0.05),
+                      blurRadius: 1,
+                      offset: const Offset(0, -1),
+                    ),
+                  ]
+                : [],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                color: isSelected ? AppColors.traceCalm : AppColors.textMuted,
+                size: 20,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? AppColors.textPrimary : AppColors.textMuted,
+                  fontSize: 8.5,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                  fontFamily: 'JetBrains Mono',
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
         ),
       ),

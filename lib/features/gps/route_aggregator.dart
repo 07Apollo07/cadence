@@ -156,6 +156,11 @@ class RouteAggregator {
         distanceFromStartKm: totalDistanceKm,
         movementMode: movementMode,
         strideLengthMeters: strideLengthMeters,
+        altitude: point.altitude,
+        altitudeAccuracy: point.altitudeAccuracy,
+        speedAccuracy: point.speedAccuracy,
+        heading: point.heading,
+        headingAccuracy: point.headingAccuracy,
       ),
     );
 

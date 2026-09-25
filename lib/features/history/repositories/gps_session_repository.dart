@@ -5,6 +5,7 @@ import '../../../core/storage/app_database.dart';
 import '../../../core/storage/database_connection.dart';
 import '../models/gps_track_point.dart';
 import '../models/km_split.dart';
+import '../services/best_efforts_calculator.dart';
 
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
   final db = constructDb();
@@ -69,7 +70,7 @@ class GpsSessionRepository {
     final pointsJson = jsonEncode(points.map((p) => p.toJson()).toList());
     final splitsJson = jsonEncode(splits.map((s) => s.toJson()).toList());
 
-    return _db.into(_db.workoutSessions).insert(
+    final sessionId = await _db.into(_db.workoutSessions).insert(
       WorkoutSessionsCompanion.insert(
         startTime: startTime,
         endTime: Value(endTime),
@@ -89,6 +90,9 @@ class GpsSessionRepository {
         splitsJson: Value(splitsJson),
       ),
     );
+
+    await _saveBestEfforts(sessionId, points);
+    return sessionId;
   }
 
   Future<bool> updateGpsSession({
@@ -112,7 +116,7 @@ class GpsSessionRepository {
     final pointsJson = jsonEncode(points.map((p) => p.toJson()).toList());
     final splitsJson = jsonEncode(splits.map((s) => s.toJson()).toList());
 
-    return _db.update(_db.workoutSessions).replace(
+    final success = await _db.update(_db.workoutSessions).replace(
       WorkoutSession(
         id: id,
         startTime: startTime,
@@ -133,6 +137,42 @@ class GpsSessionRepository {
         splitsJson: splitsJson,
       ),
     );
+
+    if (success) {
+      await _saveBestEfforts(id, points);
+    }
+    return success;
+  }
+
+  Future<void> _saveBestEfforts(int sessionId, List<GpsTrackPoint> points) async {
+    await (_db.delete(_db.analyticsBestEfforts)..where((tbl) => tbl.sessionId.equals(sessionId))).go();
+
+    int insertedCount = 0;
+    for (final bucket in BestEffortBucket.standardBuckets) {
+      final duration = BestEffortsCalculator.computeBestEffort(points, bucket.targetKm);
+      if (duration != null) {
+        await _db.into(_db.analyticsBestEfforts).insert(
+          AnalyticsBestEffortsCompanion.insert(
+            sessionId: sessionId,
+            distanceBucket: bucket.label,
+            bestDurationSeconds: duration.inSeconds,
+            computedAt: DateTime.now(),
+          ),
+        );
+        insertedCount++;
+      }
+    }
+
+    if (insertedCount == 0) {
+      await _db.into(_db.analyticsBestEfforts).insert(
+        AnalyticsBestEffortsCompanion.insert(
+          sessionId: sessionId,
+          distanceBucket: 'none',
+          bestDurationSeconds: 0,
+          computedAt: DateTime.now(),
+        ),
+      );
+    }
   }
 
   Future<int> deleteSession(int id) {

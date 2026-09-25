@@ -7,6 +7,11 @@ class PositionData {
   final double accuracy;
   final DateTime timestamp;
   final double? speed;
+  final double? altitude;
+  final double? altitudeAccuracy;
+  final double? speedAccuracy;
+  final double? heading;
+  final double? headingAccuracy;
 
   const PositionData({
     required this.latitude,
@@ -14,6 +19,11 @@ class PositionData {
     required this.accuracy,
     required this.timestamp,
     this.speed,
+    this.altitude,
+    this.altitudeAccuracy,
+    this.speedAccuracy,
+    this.heading,
+    this.headingAccuracy,
   });
 }
 
@@ -94,6 +104,11 @@ class GeolocatorLocationService implements LocationService {
           accuracy: pos.accuracy,
           timestamp: pos.timestamp,
           speed: pos.speed,
+          altitude: pos.altitude,
+          altitudeAccuracy: pos.altitudeAccuracy,
+          speedAccuracy: pos.speedAccuracy,
+          heading: pos.heading,
+          headingAccuracy: pos.headingAccuracy,
         );
       },
     );

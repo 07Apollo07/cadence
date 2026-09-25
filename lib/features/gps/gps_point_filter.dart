@@ -6,12 +6,22 @@ class FilteredPoint {
   final double accuracyMeters;
   final DateTime timestamp;
   final double? speed;
+  final double? altitude;
+  final double? altitudeAccuracy;
+  final double? speedAccuracy;
+  final double? heading;
+  final double? headingAccuracy;
 
   const FilteredPoint({
     required this.position,
     required this.accuracyMeters,
     required this.timestamp,
     this.speed,
+    this.altitude,
+    this.altitudeAccuracy,
+    this.speedAccuracy,
+    this.heading,
+    this.headingAccuracy,
   });
 }
 
@@ -32,6 +42,11 @@ class GpsPointFilter {
     required double accuracyMeters,
     required DateTime timestamp,
     double? speed,
+    double? altitude,
+    double? altitudeAccuracy,
+    double? speedAccuracy,
+    double? heading,
+    double? headingAccuracy,
   }) {
     // 1. Check accuracy threshold
     if (accuracyMeters > GpsConstants.maxAcceptableAccuracyM) {
@@ -48,6 +63,11 @@ class GpsPointFilter {
         accuracyMeters: accuracyMeters,
         timestamp: timestamp,
         speed: speed,
+        altitude: altitude,
+        altitudeAccuracy: altitudeAccuracy,
+        speedAccuracy: speedAccuracy,
+        heading: heading,
+        headingAccuracy: headingAccuracy,
       );
     }
 
@@ -63,6 +83,11 @@ class GpsPointFilter {
       accuracyMeters: accuracyMeters,
       timestamp: timestamp,
       speed: speed,
+      altitude: altitude,
+      altitudeAccuracy: altitudeAccuracy,
+      speedAccuracy: speedAccuracy,
+      heading: heading,
+      headingAccuracy: headingAccuracy,
     );
   }
 

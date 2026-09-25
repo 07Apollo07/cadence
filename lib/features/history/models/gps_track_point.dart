@@ -11,6 +11,11 @@ class GpsTrackPoint {
   final bool isPausePoint;
   final MovementMode movementMode;
   final double strideLengthMeters;
+  final double? altitude;
+  final double? altitudeAccuracy;
+  final double? speedAccuracy;
+  final double? heading;
+  final double? headingAccuracy;
 
   const GpsTrackPoint({
     required this.latitude,
@@ -22,6 +27,11 @@ class GpsTrackPoint {
     this.isPausePoint = false,
     required this.movementMode,
     required this.strideLengthMeters,
+    this.altitude,
+    this.altitudeAccuracy,
+    this.speedAccuracy,
+    this.heading,
+    this.headingAccuracy,
   });
 
   LatLng get latLng => LatLng(latitude, longitude);
@@ -36,6 +46,11 @@ class GpsTrackPoint {
     'pause': isPausePoint,
     'mode': movementMode.name,
     'stride': strideLengthMeters,
+    if (altitude != null) 'alt': altitude,
+    if (altitudeAccuracy != null) 'altAcc': altitudeAccuracy,
+    if (speedAccuracy != null) 'spdAcc': speedAccuracy,
+    if (heading != null) 'hdg': heading,
+    if (headingAccuracy != null) 'hdgAcc': headingAccuracy,
   };
 
   factory GpsTrackPoint.fromJson(Map<String, dynamic> json) {
@@ -57,6 +72,11 @@ class GpsTrackPoint {
       isPausePoint: json['pause'] as bool? ?? false,
       movementMode: mode,
       strideLengthMeters: (json['stride'] as num?)?.toDouble() ?? 0.75,
+      altitude: (json['alt'] as num?)?.toDouble(),
+      altitudeAccuracy: (json['altAcc'] as num?)?.toDouble(),
+      speedAccuracy: (json['spdAcc'] as num?)?.toDouble(),
+      heading: (json['hdg'] as num?)?.toDouble(),
+      headingAccuracy: (json['hdgAcc'] as num?)?.toDouble(),
     );
   }
 }

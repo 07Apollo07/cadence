@@ -1445,6 +1445,383 @@ class WorkoutSamplesCompanion extends UpdateCompanion<WorkoutSample> {
   }
 }
 
+class $AnalyticsBestEffortsTable extends AnalyticsBestEfforts
+    with TableInfo<$AnalyticsBestEffortsTable, AnalyticsBestEffort> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AnalyticsBestEffortsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<int> sessionId = GeneratedColumn<int>(
+    'session_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES workout_sessions (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _distanceBucketMeta = const VerificationMeta(
+    'distanceBucket',
+  );
+  @override
+  late final GeneratedColumn<String> distanceBucket = GeneratedColumn<String>(
+    'distance_bucket',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _bestDurationSecondsMeta =
+      const VerificationMeta('bestDurationSeconds');
+  @override
+  late final GeneratedColumn<int> bestDurationSeconds = GeneratedColumn<int>(
+    'best_duration_seconds',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _computedAtMeta = const VerificationMeta(
+    'computedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> computedAt = GeneratedColumn<DateTime>(
+    'computed_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    sessionId,
+    distanceBucket,
+    bestDurationSeconds,
+    computedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'analytics_best_efforts';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AnalyticsBestEffort> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sessionIdMeta);
+    }
+    if (data.containsKey('distance_bucket')) {
+      context.handle(
+        _distanceBucketMeta,
+        distanceBucket.isAcceptableOrUnknown(
+          data['distance_bucket']!,
+          _distanceBucketMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_distanceBucketMeta);
+    }
+    if (data.containsKey('best_duration_seconds')) {
+      context.handle(
+        _bestDurationSecondsMeta,
+        bestDurationSeconds.isAcceptableOrUnknown(
+          data['best_duration_seconds']!,
+          _bestDurationSecondsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_bestDurationSecondsMeta);
+    }
+    if (data.containsKey('computed_at')) {
+      context.handle(
+        _computedAtMeta,
+        computedAt.isAcceptableOrUnknown(data['computed_at']!, _computedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_computedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AnalyticsBestEffort map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AnalyticsBestEffort(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}session_id'],
+      )!,
+      distanceBucket: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}distance_bucket'],
+      )!,
+      bestDurationSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}best_duration_seconds'],
+      )!,
+      computedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}computed_at'],
+      )!,
+    );
+  }
+
+  @override
+  $AnalyticsBestEffortsTable createAlias(String alias) {
+    return $AnalyticsBestEffortsTable(attachedDatabase, alias);
+  }
+}
+
+class AnalyticsBestEffort extends DataClass
+    implements Insertable<AnalyticsBestEffort> {
+  final int id;
+  final int sessionId;
+  final String distanceBucket;
+  final int bestDurationSeconds;
+  final DateTime computedAt;
+  const AnalyticsBestEffort({
+    required this.id,
+    required this.sessionId,
+    required this.distanceBucket,
+    required this.bestDurationSeconds,
+    required this.computedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['session_id'] = Variable<int>(sessionId);
+    map['distance_bucket'] = Variable<String>(distanceBucket);
+    map['best_duration_seconds'] = Variable<int>(bestDurationSeconds);
+    map['computed_at'] = Variable<DateTime>(computedAt);
+    return map;
+  }
+
+  AnalyticsBestEffortsCompanion toCompanion(bool nullToAbsent) {
+    return AnalyticsBestEffortsCompanion(
+      id: Value(id),
+      sessionId: Value(sessionId),
+      distanceBucket: Value(distanceBucket),
+      bestDurationSeconds: Value(bestDurationSeconds),
+      computedAt: Value(computedAt),
+    );
+  }
+
+  factory AnalyticsBestEffort.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AnalyticsBestEffort(
+      id: serializer.fromJson<int>(json['id']),
+      sessionId: serializer.fromJson<int>(json['sessionId']),
+      distanceBucket: serializer.fromJson<String>(json['distanceBucket']),
+      bestDurationSeconds: serializer.fromJson<int>(
+        json['bestDurationSeconds'],
+      ),
+      computedAt: serializer.fromJson<DateTime>(json['computedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'sessionId': serializer.toJson<int>(sessionId),
+      'distanceBucket': serializer.toJson<String>(distanceBucket),
+      'bestDurationSeconds': serializer.toJson<int>(bestDurationSeconds),
+      'computedAt': serializer.toJson<DateTime>(computedAt),
+    };
+  }
+
+  AnalyticsBestEffort copyWith({
+    int? id,
+    int? sessionId,
+    String? distanceBucket,
+    int? bestDurationSeconds,
+    DateTime? computedAt,
+  }) => AnalyticsBestEffort(
+    id: id ?? this.id,
+    sessionId: sessionId ?? this.sessionId,
+    distanceBucket: distanceBucket ?? this.distanceBucket,
+    bestDurationSeconds: bestDurationSeconds ?? this.bestDurationSeconds,
+    computedAt: computedAt ?? this.computedAt,
+  );
+  AnalyticsBestEffort copyWithCompanion(AnalyticsBestEffortsCompanion data) {
+    return AnalyticsBestEffort(
+      id: data.id.present ? data.id.value : this.id,
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      distanceBucket: data.distanceBucket.present
+          ? data.distanceBucket.value
+          : this.distanceBucket,
+      bestDurationSeconds: data.bestDurationSeconds.present
+          ? data.bestDurationSeconds.value
+          : this.bestDurationSeconds,
+      computedAt: data.computedAt.present
+          ? data.computedAt.value
+          : this.computedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AnalyticsBestEffort(')
+          ..write('id: $id, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('distanceBucket: $distanceBucket, ')
+          ..write('bestDurationSeconds: $bestDurationSeconds, ')
+          ..write('computedAt: $computedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    sessionId,
+    distanceBucket,
+    bestDurationSeconds,
+    computedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AnalyticsBestEffort &&
+          other.id == this.id &&
+          other.sessionId == this.sessionId &&
+          other.distanceBucket == this.distanceBucket &&
+          other.bestDurationSeconds == this.bestDurationSeconds &&
+          other.computedAt == this.computedAt);
+}
+
+class AnalyticsBestEffortsCompanion
+    extends UpdateCompanion<AnalyticsBestEffort> {
+  final Value<int> id;
+  final Value<int> sessionId;
+  final Value<String> distanceBucket;
+  final Value<int> bestDurationSeconds;
+  final Value<DateTime> computedAt;
+  const AnalyticsBestEffortsCompanion({
+    this.id = const Value.absent(),
+    this.sessionId = const Value.absent(),
+    this.distanceBucket = const Value.absent(),
+    this.bestDurationSeconds = const Value.absent(),
+    this.computedAt = const Value.absent(),
+  });
+  AnalyticsBestEffortsCompanion.insert({
+    this.id = const Value.absent(),
+    required int sessionId,
+    required String distanceBucket,
+    required int bestDurationSeconds,
+    required DateTime computedAt,
+  }) : sessionId = Value(sessionId),
+       distanceBucket = Value(distanceBucket),
+       bestDurationSeconds = Value(bestDurationSeconds),
+       computedAt = Value(computedAt);
+  static Insertable<AnalyticsBestEffort> custom({
+    Expression<int>? id,
+    Expression<int>? sessionId,
+    Expression<String>? distanceBucket,
+    Expression<int>? bestDurationSeconds,
+    Expression<DateTime>? computedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (sessionId != null) 'session_id': sessionId,
+      if (distanceBucket != null) 'distance_bucket': distanceBucket,
+      if (bestDurationSeconds != null)
+        'best_duration_seconds': bestDurationSeconds,
+      if (computedAt != null) 'computed_at': computedAt,
+    });
+  }
+
+  AnalyticsBestEffortsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? sessionId,
+    Value<String>? distanceBucket,
+    Value<int>? bestDurationSeconds,
+    Value<DateTime>? computedAt,
+  }) {
+    return AnalyticsBestEffortsCompanion(
+      id: id ?? this.id,
+      sessionId: sessionId ?? this.sessionId,
+      distanceBucket: distanceBucket ?? this.distanceBucket,
+      bestDurationSeconds: bestDurationSeconds ?? this.bestDurationSeconds,
+      computedAt: computedAt ?? this.computedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (sessionId.present) {
+      map['session_id'] = Variable<int>(sessionId.value);
+    }
+    if (distanceBucket.present) {
+      map['distance_bucket'] = Variable<String>(distanceBucket.value);
+    }
+    if (bestDurationSeconds.present) {
+      map['best_duration_seconds'] = Variable<int>(bestDurationSeconds.value);
+    }
+    if (computedAt.present) {
+      map['computed_at'] = Variable<DateTime>(computedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AnalyticsBestEffortsCompanion(')
+          ..write('id: $id, ')
+          ..write('sessionId: $sessionId, ')
+          ..write('distanceBucket: $distanceBucket, ')
+          ..write('bestDurationSeconds: $bestDurationSeconds, ')
+          ..write('computedAt: $computedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -1452,6 +1829,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this,
   );
   late final $WorkoutSamplesTable workoutSamples = $WorkoutSamplesTable(this);
+  late final $AnalyticsBestEffortsTable analyticsBestEfforts =
+      $AnalyticsBestEffortsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1459,6 +1838,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     workoutSessions,
     workoutSamples,
+    analyticsBestEfforts,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -1468,6 +1848,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('workout_samples', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'workout_sessions',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('analytics_best_efforts', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -1535,6 +1922,31 @@ final class $$WorkoutSessionsTableReferences
     ).filter((f) => f.sessionId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_workoutSamplesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $AnalyticsBestEffortsTable,
+    List<AnalyticsBestEffort>
+  >
+  _analyticsBestEffortsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.analyticsBestEfforts,
+        aliasName: 'workout_sessions__id__analytics_best_efforts__session_id',
+      );
+
+  $$AnalyticsBestEffortsTableProcessedTableManager
+  get analyticsBestEffortsRefs {
+    final manager = $$AnalyticsBestEffortsTableTableManager(
+      $_db,
+      $_db.analyticsBestEfforts,
+    ).filter((f) => f.sessionId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _analyticsBestEffortsRefsTable($_db),
+    );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -1651,6 +2063,31 @@ class $$WorkoutSessionsTableFilterComposer
           }) => $$WorkoutSamplesTableFilterComposer(
             $db: $db,
             $table: $db.workoutSamples,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> analyticsBestEffortsRefs(
+    Expression<bool> Function($$AnalyticsBestEffortsTableFilterComposer f) f,
+  ) {
+    final $$AnalyticsBestEffortsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.analyticsBestEfforts,
+      getReferencedColumn: (t) => t.sessionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AnalyticsBestEffortsTableFilterComposer(
+            $db: $db,
+            $table: $db.analyticsBestEfforts,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -1866,6 +2303,32 @@ class $$WorkoutSessionsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> analyticsBestEffortsRefs<T extends Object>(
+    Expression<T> Function($$AnalyticsBestEffortsTableAnnotationComposer a) f,
+  ) {
+    final $$AnalyticsBestEffortsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.analyticsBestEfforts,
+          getReferencedColumn: (t) => t.sessionId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$AnalyticsBestEffortsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.analyticsBestEfforts,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$WorkoutSessionsTableTableManager
@@ -1881,7 +2344,10 @@ class $$WorkoutSessionsTableTableManager
           $$WorkoutSessionsTableUpdateCompanionBuilder,
           (WorkoutSession, $$WorkoutSessionsTableReferences),
           WorkoutSession,
-          PrefetchHooks Function({bool workoutSamplesRefs})
+          PrefetchHooks Function({
+            bool workoutSamplesRefs,
+            bool analyticsBestEffortsRefs,
+          })
         > {
   $$WorkoutSessionsTableTableManager(
     _$AppDatabase db,
@@ -1980,38 +2446,63 @@ class $$WorkoutSessionsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({workoutSamplesRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [
-                if (workoutSamplesRefs) db.workoutSamples,
-              ],
-              addJoins: null,
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (workoutSamplesRefs)
-                    await $_getPrefetchedData<
-                      WorkoutSession,
-                      $WorkoutSessionsTable,
-                      WorkoutSample
-                    >(
-                      currentTable: table,
-                      referencedTable: $$WorkoutSessionsTableReferences
-                          ._workoutSamplesRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $$WorkoutSessionsTableReferences(
-                            db,
-                            table,
-                            p0,
-                          ).workoutSamplesRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.sessionId == item.id),
-                      typedResults: items,
-                    ),
-                ];
+          prefetchHooksCallback:
+              ({workoutSamplesRefs = false, analyticsBestEffortsRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (workoutSamplesRefs) db.workoutSamples,
+                    if (analyticsBestEffortsRefs) db.analyticsBestEfforts,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (workoutSamplesRefs)
+                        await $_getPrefetchedData<
+                          WorkoutSession,
+                          $WorkoutSessionsTable,
+                          WorkoutSample
+                        >(
+                          currentTable: table,
+                          referencedTable: $$WorkoutSessionsTableReferences
+                              ._workoutSamplesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$WorkoutSessionsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).workoutSamplesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.sessionId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (analyticsBestEffortsRefs)
+                        await $_getPrefetchedData<
+                          WorkoutSession,
+                          $WorkoutSessionsTable,
+                          AnalyticsBestEffort
+                        >(
+                          currentTable: table,
+                          referencedTable: $$WorkoutSessionsTableReferences
+                              ._analyticsBestEffortsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$WorkoutSessionsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).analyticsBestEffortsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.sessionId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -2028,7 +2519,10 @@ typedef $$WorkoutSessionsTableProcessedTableManager =
       $$WorkoutSessionsTableUpdateCompanionBuilder,
       (WorkoutSession, $$WorkoutSessionsTableReferences),
       WorkoutSession,
-      PrefetchHooks Function({bool workoutSamplesRefs})
+      PrefetchHooks Function({
+        bool workoutSamplesRefs,
+        bool analyticsBestEffortsRefs,
+      })
     >;
 typedef $$WorkoutSamplesTableCreateCompanionBuilder =
     WorkoutSamplesCompanion Function({
@@ -2387,6 +2881,345 @@ typedef $$WorkoutSamplesTableProcessedTableManager =
       WorkoutSample,
       PrefetchHooks Function({bool sessionId})
     >;
+typedef $$AnalyticsBestEffortsTableCreateCompanionBuilder =
+    AnalyticsBestEffortsCompanion Function({
+      Value<int> id,
+      required int sessionId,
+      required String distanceBucket,
+      required int bestDurationSeconds,
+      required DateTime computedAt,
+    });
+typedef $$AnalyticsBestEffortsTableUpdateCompanionBuilder =
+    AnalyticsBestEffortsCompanion Function({
+      Value<int> id,
+      Value<int> sessionId,
+      Value<String> distanceBucket,
+      Value<int> bestDurationSeconds,
+      Value<DateTime> computedAt,
+    });
+
+final class $$AnalyticsBestEffortsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $AnalyticsBestEffortsTable,
+          AnalyticsBestEffort
+        > {
+  $$AnalyticsBestEffortsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $WorkoutSessionsTable _sessionIdTable(_$AppDatabase db) => db
+      .workoutSessions
+      .createAlias('analytics_best_efforts__session_id__workout_sessions__id');
+
+  $$WorkoutSessionsTableProcessedTableManager get sessionId {
+    final $_column = $_itemColumn<int>('session_id')!;
+
+    final manager = $$WorkoutSessionsTableTableManager(
+      $_db,
+      $_db.workoutSessions,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_sessionIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$AnalyticsBestEffortsTableFilterComposer
+    extends Composer<_$AppDatabase, $AnalyticsBestEffortsTable> {
+  $$AnalyticsBestEffortsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get distanceBucket => $composableBuilder(
+    column: $table.distanceBucket,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get bestDurationSeconds => $composableBuilder(
+    column: $table.bestDurationSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get computedAt => $composableBuilder(
+    column: $table.computedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$WorkoutSessionsTableFilterComposer get sessionId {
+    final $$WorkoutSessionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.workoutSessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkoutSessionsTableFilterComposer(
+            $db: $db,
+            $table: $db.workoutSessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$AnalyticsBestEffortsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AnalyticsBestEffortsTable> {
+  $$AnalyticsBestEffortsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get distanceBucket => $composableBuilder(
+    column: $table.distanceBucket,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get bestDurationSeconds => $composableBuilder(
+    column: $table.bestDurationSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get computedAt => $composableBuilder(
+    column: $table.computedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$WorkoutSessionsTableOrderingComposer get sessionId {
+    final $$WorkoutSessionsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.workoutSessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkoutSessionsTableOrderingComposer(
+            $db: $db,
+            $table: $db.workoutSessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$AnalyticsBestEffortsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AnalyticsBestEffortsTable> {
+  $$AnalyticsBestEffortsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get distanceBucket => $composableBuilder(
+    column: $table.distanceBucket,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get bestDurationSeconds => $composableBuilder(
+    column: $table.bestDurationSeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get computedAt => $composableBuilder(
+    column: $table.computedAt,
+    builder: (column) => column,
+  );
+
+  $$WorkoutSessionsTableAnnotationComposer get sessionId {
+    final $$WorkoutSessionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.sessionId,
+      referencedTable: $db.workoutSessions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorkoutSessionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.workoutSessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$AnalyticsBestEffortsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AnalyticsBestEffortsTable,
+          AnalyticsBestEffort,
+          $$AnalyticsBestEffortsTableFilterComposer,
+          $$AnalyticsBestEffortsTableOrderingComposer,
+          $$AnalyticsBestEffortsTableAnnotationComposer,
+          $$AnalyticsBestEffortsTableCreateCompanionBuilder,
+          $$AnalyticsBestEffortsTableUpdateCompanionBuilder,
+          (AnalyticsBestEffort, $$AnalyticsBestEffortsTableReferences),
+          AnalyticsBestEffort,
+          PrefetchHooks Function({bool sessionId})
+        > {
+  $$AnalyticsBestEffortsTableTableManager(
+    _$AppDatabase db,
+    $AnalyticsBestEffortsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AnalyticsBestEffortsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AnalyticsBestEffortsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$AnalyticsBestEffortsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> sessionId = const Value.absent(),
+                Value<String> distanceBucket = const Value.absent(),
+                Value<int> bestDurationSeconds = const Value.absent(),
+                Value<DateTime> computedAt = const Value.absent(),
+              }) => AnalyticsBestEffortsCompanion(
+                id: id,
+                sessionId: sessionId,
+                distanceBucket: distanceBucket,
+                bestDurationSeconds: bestDurationSeconds,
+                computedAt: computedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int sessionId,
+                required String distanceBucket,
+                required int bestDurationSeconds,
+                required DateTime computedAt,
+              }) => AnalyticsBestEffortsCompanion.insert(
+                id: id,
+                sessionId: sessionId,
+                distanceBucket: distanceBucket,
+                bestDurationSeconds: bestDurationSeconds,
+                computedAt: computedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$AnalyticsBestEffortsTable, AnalyticsBestEffort>(
+                    table,
+                  ),
+                  $$AnalyticsBestEffortsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({sessionId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (sessionId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.sessionId,
+                                referencedTable:
+                                    $$AnalyticsBestEffortsTableReferences
+                                        ._sessionIdTable(db),
+                                referencedColumn:
+                                    $$AnalyticsBestEffortsTableReferences
+                                        ._sessionIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$AnalyticsBestEffortsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AnalyticsBestEffortsTable,
+      AnalyticsBestEffort,
+      $$AnalyticsBestEffortsTableFilterComposer,
+      $$AnalyticsBestEffortsTableOrderingComposer,
+      $$AnalyticsBestEffortsTableAnnotationComposer,
+      $$AnalyticsBestEffortsTableCreateCompanionBuilder,
+      $$AnalyticsBestEffortsTableUpdateCompanionBuilder,
+      (AnalyticsBestEffort, $$AnalyticsBestEffortsTableReferences),
+      AnalyticsBestEffort,
+      PrefetchHooks Function({bool sessionId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -2395,4 +3228,6 @@ class $AppDatabaseManager {
       $$WorkoutSessionsTableTableManager(_db, _db.workoutSessions);
   $$WorkoutSamplesTableTableManager get workoutSamples =>
       $$WorkoutSamplesTableTableManager(_db, _db.workoutSamples);
+  $$AnalyticsBestEffortsTableTableManager get analyticsBestEfforts =>
+      $$AnalyticsBestEffortsTableTableManager(_db, _db.analyticsBestEfforts);
 }
