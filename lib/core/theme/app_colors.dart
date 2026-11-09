@@ -10,5 +10,6 @@ class AppColors {
   static const Color textMuted = Color(0xFF7C8A96);
   static const Color traceCalm = Color(0xFF2DD4BF);
   static const Color traceHot = Color(0xFFFF9F1C);
+  static const Color info = Color(0xFF38BDF8);
   static const Color statusDanger = Color(0xFFE5484D);
 }

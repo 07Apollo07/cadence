@@ -12,7 +12,7 @@ import 'models/gps_track_point.dart';
 import 'models/km_split.dart';
 import 'repositories/gps_session_repository.dart';
 
-enum TrackGraphType { pace, cadence, stride, speed }
+enum TrackGraphType { pace, cadence, stride, speed, altitude }
 
 class RunDetailScreen extends ConsumerStatefulWidget {
   final WorkoutSession session;
@@ -159,6 +159,8 @@ class _RunDetailScreenState extends ConsumerState<RunDetailScreen> {
         return 'Stride Length';
       case TrackGraphType.speed:
         return 'Speed Profile';
+      case TrackGraphType.altitude:
+        return 'Altitude Profile';
     }
   }
 
@@ -293,24 +295,50 @@ class _RunDetailScreenState extends ConsumerState<RunDetailScreen> {
 
     // Active Runner Marker
     if (_animationProgress > 0.0) {
+      final activeIdx = (_animationProgress * (_points.length - 1)).round();
+      final activePoint = _points.isNotEmpty ? _points[activeIdx] : null;
+      final headingDegrees = activePoint?.heading;
       markers.add(
         Marker(
           point: currentAnimatedPoint,
           width: 34,
           height: 34,
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.traceCalm,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 3),
-              boxShadow: const [
-                BoxShadow(color: Colors.black38, blurRadius: 6),
+          child: Transform.rotate(
+            angle: (headingDegrees ?? 0) * 3.141592653589793 / 180,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.traceCalm,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 3),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black38, blurRadius: 6),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.directions_run,
+                    size: 18,
+                    color: Colors.black,
+                  ),
+                ),
+                if (headingDegrees != null)
+                  Container(
+                    margin: const EdgeInsets.only(top: 2),
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: AppColors.traceCalm,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                    child: const Icon(
+                      Icons.arrow_drop_up,
+                      size: 14,
+                      color: Colors.white,
+                    ),
+                  ),
               ],
-            ),
-            child: const Icon(
-              Icons.directions_run,
-              size: 18,
-              color: Colors.black,
             ),
           ),
         ),
@@ -796,154 +824,178 @@ class _RunDetailScreenState extends ConsumerState<RunDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Main Metrics Grid
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatCard(
-                          'Moving Time',
-                          _formatDuration(s.movingDurationSeconds),
-                          '',
-                          Icons.timer,
+                  // Section 1: Overview (Rows 1 & 2)
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfacePanel,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.hairline),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Overview',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _buildStatCard(
-                          'Idle Time',
-                          _formatDuration(idleSeconds),
-                          '',
-                          Icons.timer_outlined,
-                          color: Colors.amber,
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatCard(
+                                'Moving Time',
+                                _formatDuration(s.movingDurationSeconds),
+                                '',
+                                Icons.timer,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildStatCard(
+                                'Idle Time',
+                                _formatDuration(idleSeconds),
+                                '',
+                                Icons.timer_outlined,
+                                color: Colors.amber,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildStatCard(
+                                'Pause Time',
+                                _formatDuration(s.pauseDurationSeconds),
+                                '',
+                                Icons.pause_circle,
+                                color: Colors.orange,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _buildStatCard(
-                          'Pause Time',
-                          _formatDuration(s.pauseDurationSeconds),
-                          '',
-                          Icons.pause_circle,
-                          color: Colors.orange,
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatCard(
+                                'Distance',
+                                s.distanceKm.toStringAsFixed(2),
+                                'km',
+                                Icons.map,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildStatCard(
+                                'Total Time',
+                                _formatDuration(s.durationSeconds),
+                                '',
+                                Icons.access_time,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildStatCard(
+                                'Steps',
+                                '${s.estimatedSteps}',
+                                'steps',
+                                Icons.directions_walk,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatCard(
-                          'Distance',
-                          s.distanceKm.toStringAsFixed(2),
-                          'km',
-                          Icons.map,
+
+                  const SizedBox(height: 16),
+
+                  // Section 2: Performance (Rows 3 & 4)
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfacePanel,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.hairline),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Performance',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _buildStatCard(
-                          'Total Time',
-                          _formatDuration(s.durationSeconds),
-                          '',
-                          Icons.access_time,
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatCard(
+                                'Avg Pace',
+                                s.avgPaceMinPerKm?.toStringAsFixed(1) ?? '--',
+                                'min/km',
+                                Icons.speed,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildStatCard(
+                                'Avg Cadence',
+                                s.avgCadence.toStringAsFixed(0),
+                                'SPM',
+                                Icons.bolt,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildStatCard(
+                                'Avg Speed',
+                                avgSpeed.toStringAsFixed(1),
+                                'km/h',
+                                Icons.directions_run,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _buildStatCard(
-                          'Steps',
-                          '${s.estimatedSteps}',
-                          'steps',
-                          Icons.directions_walk,
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatCard(
+                                'Max Pace',
+                                s.bestPaceMinPerKm?.toStringAsFixed(1) ?? '--',
+                                'min/km',
+                                Icons.history,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildStatCard(
+                                'Max Cadence',
+                                s.maxCadence.toStringAsFixed(0),
+                                'SPM',
+                                Icons.flash_on,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildStatCard(
+                                'Max Speed',
+                                maxSpeed.toStringAsFixed(1),
+                                'km/h',
+                                Icons.speed,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatCard(
-                          'Avg Pace',
-                          s.avgPaceMinPerKm?.toStringAsFixed(1) ?? '--',
-                          'min/km',
-                          Icons.speed,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _buildStatCard(
-                          'Avg Cadence',
-                          s.avgCadence.toStringAsFixed(0),
-                          'SPM',
-                          Icons.bolt,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _buildStatCard(
-                          'Avg Speed',
-                          avgSpeed.toStringAsFixed(1),
-                          'km/h',
-                          Icons.directions_run,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatCard(
-                          'Max Pace',
-                          s.bestPaceMinPerKm?.toStringAsFixed(1) ?? '--',
-                          'min/km',
-                          Icons.history,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _buildStatCard(
-                          'Max Cadence',
-                          s.maxCadence.toStringAsFixed(0),
-                          'SPM',
-                          Icons.flash_on,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _buildStatCard(
-                          'Max Speed',
-                          maxSpeed.toStringAsFixed(1),
-                          'km/h',
-                          Icons.speed,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatCard(
-                          'Avg Stride',
-                          (_points.isNotEmpty
-                                  ? (_points
-                                            .map((p) => p.strideLengthMeters)
-                                            .reduce((a, b) => a + b) /
-                                        _points.length)
-                                  : 0.75)
-                              .toStringAsFixed(2),
-                          'm',
-                          Icons.straighten,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Expanded(child: SizedBox()),
-                      const SizedBox(width: 8),
-                      const Expanded(child: SizedBox()),
-                    ],
+                      ],
+                    ),
                   ),
 
                   const SizedBox(height: 24),
@@ -985,6 +1037,12 @@ class _RunDetailScreenState extends ConsumerState<RunDetailScreen> {
                             'Speed',
                             TrackGraphType.speed,
                             const Color(0xFF38BDF8),
+                          ),
+                          const SizedBox(width: 4),
+                          _buildGraphTab(
+                            'Altitude',
+                            TrackGraphType.altitude,
+                            AppColors.info,
                           ),
                         ],
                       ),
@@ -1131,7 +1189,7 @@ class _RunDetailScreenState extends ConsumerState<RunDetailScreen> {
                                               Row(
                                                 children: [
                                                   Text(
-                                                    'Pace: ${split.paceFormatted} /km',
+                                                    'Pace: ${split.paceFormatted} min/km',
                                                     style: const TextStyle(
                                                       color:
                                                           AppColors.textPrimary,
@@ -1395,6 +1453,12 @@ class _WorkoutGraphPainter extends CustomPainter {
           values.add(p.speedKmH);
         }
         break;
+      case TrackGraphType.altitude:
+        themeColor = AppColors.info;
+        for (final p in points) {
+          values.add(p.altitude ?? 0.0);
+        }
+        break;
     }
 
     double minVal = values.reduce((a, b) => a < b ? a : b);
@@ -1424,6 +1488,12 @@ class _WorkoutGraphPainter extends CustomPainter {
         if ((maxVal - minVal) < 2.0) {
           minVal = (minVal - 1.0).clamp(0.0, 50.0);
           maxVal = (maxVal + 1.0).clamp(0.0, 50.0);
+        }
+        break;
+      case TrackGraphType.altitude:
+        if ((maxVal - minVal) < 5.0) {
+          minVal = (minVal - 5.0).clamp(0.0, double.maxFinite);
+          maxVal = (maxVal + 5.0).clamp(0.0, double.maxFinite);
         }
         break;
     }
@@ -1595,6 +1665,25 @@ class _WorkoutGraphPainter extends CustomPainter {
       final secondaryText =
           '${activePoint.distanceFromStartKm.toStringAsFixed(2)} km';
 
+      String? accuracyText;
+      switch (graphType) {
+        case TrackGraphType.speed:
+          if (activePoint.speedAccuracy != null &&
+              activePoint.speedAccuracy! > 0) {
+            accuracyText =
+                '± ${activePoint.speedAccuracy!.toStringAsFixed(1)} m/s';
+          }
+          break;
+        case TrackGraphType.altitude:
+          if (activePoint.altitudeAccuracy != null &&
+              activePoint.altitudeAccuracy! > 0) {
+            accuracyText =
+                '± ${activePoint.altitudeAccuracy!.toStringAsFixed(1)} m';
+          }
+          break;
+        default:
+      }
+
       final tooltipValPainter = TextPainter(
         text: TextSpan(
           text: primaryText,
@@ -1619,12 +1708,30 @@ class _WorkoutGraphPainter extends CustomPainter {
         textDirection: TextDirection.ltr,
       )..layout();
 
+      TextPainter? tooltipAccPainter;
+      if (accuracyText != null && accuracyText.isNotEmpty) {
+        tooltipAccPainter = TextPainter(
+          text: TextSpan(
+            text: accuracyText,
+            style: const TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 9,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+      }
+
       final badgeW =
-          (tooltipValPainter.width > tooltipDistPainter.width
-              ? tooltipValPainter.width
-              : tooltipDistPainter.width) +
+          [
+            tooltipValPainter.width,
+            tooltipDistPainter.width,
+            if (tooltipAccPainter != null) tooltipAccPainter.width,
+          ].reduce((a, b) => a > b ? a : b) +
           16.0;
       const badgeH = 34.0;
+      final badgeHeight = tooltipAccPainter != null ? 46.0 : badgeH;
 
       // Position tooltip horizontally centered on activeX, clamped within bounds
       double badgeX = activeX - (badgeW / 2);
@@ -1634,12 +1741,12 @@ class _WorkoutGraphPainter extends CustomPainter {
       }
 
       // Position tooltip above the point if room, else below
-      double badgeY = activeY - badgeH - 8;
+      double badgeY = activeY - badgeHeight - 8;
       if (badgeY < topPadding) {
         badgeY = activeY + 10;
       }
 
-      final badgeRect = Rect.fromLTWH(badgeX, badgeY, badgeW, badgeH);
+      final badgeRect = Rect.fromLTWH(badgeX, badgeY, badgeW, badgeHeight);
       final badgeRRect = RRect.fromRectAndRadius(
         badgeRect,
         const Radius.circular(6),
@@ -1667,6 +1774,12 @@ class _WorkoutGraphPainter extends CustomPainter {
         canvas,
         Offset(badgeX + (badgeW - tooltipDistPainter.width) / 2, badgeY + 18),
       );
+      if (tooltipAccPainter != null) {
+        tooltipAccPainter.paint(
+          canvas,
+          Offset(badgeX + (badgeW - tooltipAccPainter.width) / 2, badgeY + 32),
+        );
+      }
     }
   }
 
@@ -1692,6 +1805,10 @@ class _WorkoutGraphPainter extends CustomPainter {
         return includeUnit
             ? '${val.toStringAsFixed(1)}km/h'
             : val.toStringAsFixed(1);
+      case TrackGraphType.altitude:
+        return includeUnit
+            ? '${val.toStringAsFixed(0)}m'
+            : val.toStringAsFixed(0);
     }
   }
 

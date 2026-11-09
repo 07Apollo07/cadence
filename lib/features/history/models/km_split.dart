@@ -16,7 +16,7 @@ class KmSplit {
   String get paceFormatted {
     final mins = avgPaceMinPerKm.floor();
     final secs = ((avgPaceMinPerKm - mins) * 60).round();
-    return '$mins:${secs.toString().padLeft(2, '0')} /km';
+    return '$mins:${secs.toString().padLeft(2, '0')}';
   }
 
   String get timeFormatted {

@@ -5,100 +5,117 @@ import '../../core/theme/app_colors.dart';
 import '../history/run_detail_screen.dart';
 import 'analytics_repository.dart';
 
-enum AnalyticsFilter { allTime, last4Weeks, last7Days }
+enum AnalyticsFilter { allTime, last4Weeks, last7Days, custom }
 
-class AnalyticsFilterNotifier extends Notifier<AnalyticsFilter> {
-  @override
-  AnalyticsFilter build() => AnalyticsFilter.allTime;
+class AnalyticsFilterState {
+  final AnalyticsFilter filter;
+  final DateTime? customStart;
+  final DateTime? customEnd;
 
-  set filter(AnalyticsFilter value) => state = value;
+  const AnalyticsFilterState({
+    required this.filter,
+    this.customStart,
+    this.customEnd,
+  });
 }
 
-final analyticsFilterProvider = NotifierProvider<AnalyticsFilterNotifier, AnalyticsFilter>(AnalyticsFilterNotifier.new);
+class AnalyticsFilterNotifier extends Notifier<AnalyticsFilterState> {
+  @override
+  AnalyticsFilterState build() =>
+      const AnalyticsFilterState(filter: AnalyticsFilter.allTime);
 
-final analyticsSummaryProvider = FutureProvider.autoDispose<AnalyticsSummary>((ref) async {
-  final repo = ref.watch(analyticsRepositoryProvider);
-  final filter = ref.watch(analyticsFilterProvider);
+  void setFilter(
+    AnalyticsFilter filter, {
+    DateTime? customStart,
+    DateTime? customEnd,
+  }) {
+    state = AnalyticsFilterState(
+      filter: filter,
+      customStart: customStart ?? state.customStart,
+      customEnd: customEnd ?? state.customEnd,
+    );
+  }
+}
+
+final analyticsFilterProvider =
+    NotifierProvider<AnalyticsFilterNotifier, AnalyticsFilterState>(
+      AnalyticsFilterNotifier.new,
+    );
+
+(DateTime, DateTime) _getDateRange(AnalyticsFilterState filterState) {
   final now = DateTime.now();
-
-  DateTime start;
-  switch (filter) {
+  switch (filterState.filter) {
     case AnalyticsFilter.last7Days:
-      start = now.subtract(const Duration(days: 7));
-      break;
+      return (now.subtract(const Duration(days: 7)), now);
     case AnalyticsFilter.last4Weeks:
-      start = now.subtract(const Duration(days: 28));
-      break;
+      return (now.subtract(const Duration(days: 28)), now);
+    case AnalyticsFilter.custom:
+      final start =
+          filterState.customStart ?? now.subtract(const Duration(days: 7));
+      final end = filterState.customEnd ?? now;
+      return (
+        DateTime(start.year, start.month, start.day, 0, 0, 0),
+        DateTime(end.year, end.month, end.day, 23, 59, 59),
+      );
     case AnalyticsFilter.allTime:
-      start = DateTime(2000);
-      break;
+      return (DateTime(2000), now);
   }
+}
 
-  return repo.getSummaryInRange(start, now);
-});
-
-final priorAnalyticsSummaryProvider = FutureProvider.autoDispose<AnalyticsSummary>((ref) async {
+final analyticsSummaryProvider = FutureProvider.autoDispose<AnalyticsSummary>((
+  ref,
+) async {
   final repo = ref.watch(analyticsRepositoryProvider);
-  final filter = ref.watch(analyticsFilterProvider);
-  final now = DateTime.now();
-
-  if (filter != AnalyticsFilter.last4Weeks) {
-    // Return empty / zero for non-4week comparisons
-    return AnalyticsSummary(totalDistanceKm: 0, totalMovingDurationSeconds: 0, totalActivities: 0, avgPaceMinPerKm: 0);
-  }
-
-  // Prior 4 weeks: 56 days ago to 28 days ago
-  final start = now.subtract(const Duration(days: 56));
-  final end = now.subtract(const Duration(days: 28));
-
-  return repo.getSummaryInRange(start, end);
+  final filterState = ref.watch(analyticsFilterProvider);
+  final range = _getDateRange(filterState);
+  return repo.getSummaryInRange(range.$1, range.$2);
 });
 
-final allTimePrsProvider = FutureProvider.autoDispose<List<BestEffortRow>>((ref) async {
+final priorAnalyticsSummaryProvider =
+    FutureProvider.autoDispose<AnalyticsSummary>((ref) async {
+      final repo = ref.watch(analyticsRepositoryProvider);
+      final filterState = ref.watch(analyticsFilterProvider);
+      final now = DateTime.now();
+
+      if (filterState.filter != AnalyticsFilter.last4Weeks) {
+        // Return empty / zero for non-4week comparisons
+        return AnalyticsSummary(
+          totalDistanceKm: 0,
+          totalMovingDurationSeconds: 0,
+          totalActivities: 0,
+          avgPaceMinPerKm: 0,
+        );
+      }
+
+      // Prior 4 weeks: 56 days ago to 28 days ago
+      final start = now.subtract(const Duration(days: 56));
+      final end = now.subtract(const Duration(days: 28));
+
+      return repo.getSummaryInRange(start, end);
+    });
+
+final allTimePrsProvider = FutureProvider.autoDispose<List<BestEffortRow>>((
+  ref,
+) async {
   final repo = ref.watch(analyticsRepositoryProvider);
   return repo.getAllTimePrs();
 });
 
-final analyticsSessionsProvider = FutureProvider.autoDispose<List<WorkoutSession>>((ref) async {
+final analyticsSessionsProvider =
+    FutureProvider.autoDispose<List<WorkoutSession>>((ref) async {
+      final repo = ref.watch(analyticsRepositoryProvider);
+      final filterState = ref.watch(analyticsFilterProvider);
+      final range = _getDateRange(filterState);
+      return repo.getSessionsInRange(range.$1, range.$2);
+    });
+
+final missingAnalyticsCountProvider = FutureProvider.autoDispose<int>((
+  ref,
+) async {
   final repo = ref.watch(analyticsRepositoryProvider);
-  final filter = ref.watch(analyticsFilterProvider);
-  final now = DateTime.now();
-
-  DateTime start;
-  switch (filter) {
-    case AnalyticsFilter.last7Days:
-      start = now.subtract(const Duration(days: 7));
-      break;
-    case AnalyticsFilter.last4Weeks:
-      start = now.subtract(const Duration(days: 28));
-      break;
-    case AnalyticsFilter.allTime:
-      start = DateTime(2000);
-      break;
-  }
-
-  return repo.getSessionsInRange(start, now);
-});
-
-final missingAnalyticsCountProvider = FutureProvider.autoDispose<int>((ref) async {
-  final repo = ref.watch(analyticsRepositoryProvider);
-  final filter = ref.watch(analyticsFilterProvider);
-  final now = DateTime.now();
-
-  DateTime start;
-  switch (filter) {
-    case AnalyticsFilter.last7Days:
-      start = now.subtract(const Duration(days: 7));
-      break;
-    case AnalyticsFilter.last4Weeks:
-      start = now.subtract(const Duration(days: 28));
-      break;
-    case AnalyticsFilter.allTime:
-      start = DateTime(2000);
-      break;
-  }
-
-  return repo.getMissingAnalyticsCount(start, now);
+  final filterState = ref.watch(analyticsFilterProvider);
+  final range = _getDateRange(filterState);
+  return repo.getMissingAnalyticsCount(range.$1, range.$2);
 });
 
 class AnalyticsScreen extends ConsumerStatefulWidget {
@@ -113,6 +130,10 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   int _backfillCurrent = 0;
   int _backfillTotal = 0;
 
+  String _formatDate(DateTime d) {
+    return '${d.month}/${d.day}/${d.year}';
+  }
+
   String _formatDuration(int seconds) {
     final h = seconds ~/ 3600;
     final m = (seconds % 3600) ~/ 60;
@@ -124,7 +145,9 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   }
 
   String _formatPace(double? paceMinPerKm) {
-    if (paceMinPerKm == null || paceMinPerKm <= 0 || paceMinPerKm.isInfinite) return '--:--';
+    if (paceMinPerKm == null || paceMinPerKm <= 0 || paceMinPerKm.isInfinite) {
+      return '--:--';
+    }
     final mins = paceMinPerKm.floor();
     final secs = ((paceMinPerKm - mins) * 60).round();
     return '$mins:${secs.toString().padLeft(2, '0')}';
@@ -152,7 +175,9 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
               children: [
                 Icon(
                   _isBackfilling ? Icons.sync : Icons.info_outline,
-                  color: _isBackfilling ? AppColors.traceCalm : AppColors.traceHot,
+                  color: _isBackfilling
+                      ? AppColors.traceCalm
+                      : AppColors.traceHot,
                   size: 20,
                 ),
                 const SizedBox(width: 12),
@@ -161,7 +186,10 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                     _isBackfilling
                         ? 'Backfilling workout analytics...'
                         : '$count workouts missing analytics in this period.',
-                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
                 if (_isBackfilling)
@@ -181,26 +209,19 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.traceHot,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                     onPressed: () async {
                       final repo = ref.read(analyticsRepositoryProvider);
-                      final filter = ref.read(analyticsFilterProvider);
-                      final now = DateTime.now();
-                      DateTime start;
-                      switch (filter) {
-                        case AnalyticsFilter.last7Days:
-                          start = now.subtract(const Duration(days: 7));
-                          break;
-                        case AnalyticsFilter.last4Weeks:
-                          start = now.subtract(const Duration(days: 28));
-                          break;
-                        case AnalyticsFilter.allTime:
-                          start = DateTime(2000);
-                          break;
-                      }
+                      final filterState = ref.read(analyticsFilterProvider);
+                      final range = _getDateRange(filterState);
+                      final start = range.$1;
+                      final end = range.$2;
 
                       setState(() {
                         _isBackfilling = true;
@@ -211,7 +232,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                       try {
                         await repo.backfillMissingAnalytics(
                           start,
-                          now,
+                          end,
                           onProgress: (processed, total) {
                             setState(() {
                               _backfillCurrent = processed;
@@ -231,7 +252,10 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                         ref.invalidate(analyticsSessionsProvider);
                       }
                     },
-                    child: const Text('Backfill', style: TextStyle(fontSize: 12)),
+                    child: const Text(
+                      'Backfill',
+                      style: TextStyle(fontSize: 12),
+                    ),
                   ),
               ],
             ),
@@ -242,7 +266,9 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                 child: LinearProgressIndicator(
                   value: _backfillCurrent / _backfillTotal,
                   backgroundColor: AppColors.surfaceInset,
-                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.traceCalm),
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                    AppColors.traceCalm,
+                  ),
                   minHeight: 4,
                 ),
               ),
@@ -292,9 +318,30 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                       ),
                       child: Row(
                         children: [
-                          _buildFilterTab(ref, AnalyticsFilter.allTime, 'All Time', filter),
-                          _buildFilterTab(ref, AnalyticsFilter.last4Weeks, '4 Wks', filter),
-                          _buildFilterTab(ref, AnalyticsFilter.last7Days, '7 Days', filter),
+                          _buildFilterTab(
+                            ref,
+                            AnalyticsFilter.allTime,
+                            'All Time',
+                            filter,
+                          ),
+                          _buildFilterTab(
+                            ref,
+                            AnalyticsFilter.last4Weeks,
+                            '4 Wks',
+                            filter,
+                          ),
+                          _buildFilterTab(
+                            ref,
+                            AnalyticsFilter.last7Days,
+                            '7 Days',
+                            filter,
+                          ),
+                          _buildFilterTab(
+                            ref,
+                            AnalyticsFilter.custom,
+                            'Custom',
+                            filter,
+                          ),
                         ],
                       ),
                     ),
@@ -302,6 +349,66 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                 ),
               ),
             ),
+
+            // Custom Range Banner
+            if (filter.filter == AnalyticsFilter.custom &&
+                filter.customStart != null &&
+                filter.customEnd != null)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 4,
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfacePanel,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: AppColors.traceHot.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.calendar_today,
+                              size: 14,
+                              color: AppColors.traceHot,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Custom: ${_formatDate(filter.customStart!)} – ${_formatDate(filter.customEnd!)}',
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 12,
+                                fontFamily: 'JetBrains Mono',
+                              ),
+                            ),
+                          ],
+                        ),
+                        GestureDetector(
+                          onTap: () => _showCustomDateRangeModal(filter),
+                          child: const Text(
+                            'Change',
+                            style: TextStyle(
+                              color: AppColors.traceHot,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
 
             // Missing Analytics Backfill Banner
             SliverToBoxAdapter(
@@ -315,7 +422,10 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
             // Summary Totals Grid
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
                 child: summaryAsync.when(
                   data: (summary) => GridView.count(
                     crossAxisCount: 2,
@@ -353,18 +463,71 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                   ),
                   loading: () => const SizedBox(
                     height: 160,
-                    child: Center(child: CircularProgressIndicator(color: AppColors.traceCalm)),
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.traceCalm,
+                      ),
+                    ),
                   ),
                   error: (e, st) => Padding(
                     padding: const EdgeInsets.all(16),
-                    child: Text('Error loading summary: $e', style: const TextStyle(color: AppColors.statusDanger)),
+                    child: Text(
+                      'Error loading summary: $e',
+                      style: const TextStyle(color: AppColors.statusDanger),
+                    ),
                   ),
                 ),
               ),
             ),
 
+            // Compact "best:" line for non-All-Time filters
+            if (filter.filter != AnalyticsFilter.allTime)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+                  child: prsAsync.when(
+                    data: (prs) {
+                      if (prs.isEmpty) return const SizedBox.shrink();
+                      final children = <Widget>[];
+                      for (var i = 0; i < prs.length; i++) {
+                        if (i > 0) children.add(const SizedBox(width: 16));
+                        children.add(
+                          Text(
+                            '${prs[i].distanceBucket} — '
+                            '${_formatDuration(prs[i].bestDurationSeconds)}',
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'JetBrains Mono',
+                            ),
+                          ),
+                        );
+                      }
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          const Text(
+                            'best: ',
+                            style: TextStyle(
+                              color: AppColors.textMuted,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              fontFamily: 'JetBrains Mono',
+                            ),
+                          ),
+                          ...children,
+                        ],
+                      );
+                    },
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, _) => const SizedBox.shrink(),
+                  ),
+                ),
+              ),
+
             // 4-Week Comparison Panel (Visible when Last 4 Weeks selected)
-            if (filter == AnalyticsFilter.last4Weeks)
+            if (filter.filter == AnalyticsFilter.last4Weeks)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
@@ -392,7 +555,8 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                           data: (curr) => priorSummaryAsync.when(
                             data: (prior) {
                               final currDistPerWk = curr.totalDistanceKm / 4.0;
-                              final priorDistPerWk = prior.totalDistanceKm / 4.0;
+                              final priorDistPerWk =
+                                  prior.totalDistanceKm / 4.0;
                               final distDiff = currDistPerWk - priorDistPerWk;
                               return Column(
                                 children: [
@@ -400,13 +564,19 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                                     'Weekly Distance',
                                     '${currDistPerWk.toStringAsFixed(1)} km',
                                     '${priorDistPerWk.toStringAsFixed(1)} km prior',
-                                    distDiff >= 0 ? '+${distDiff.toStringAsFixed(1)} km' : '${distDiff.toStringAsFixed(1)} km',
+                                    distDiff >= 0
+                                        ? '+${distDiff.toStringAsFixed(1)} km'
+                                        : '${distDiff.toStringAsFixed(1)} km',
                                     distDiff >= 0,
                                   ),
-                                  const Divider(color: AppColors.hairline, height: 20),
+                                  const Divider(
+                                    color: AppColors.hairline,
+                                    height: 20,
+                                  ),
                                   _buildComparisonRow(
                                     'Weekly Activities',
-                                    (curr.totalActivities / 4.0).toStringAsFixed(1),
+                                    (curr.totalActivities / 4.0)
+                                        .toStringAsFixed(1),
                                     '${(prior.totalActivities / 4.0).toStringAsFixed(1)} prior',
                                     '',
                                     true,
@@ -417,7 +587,8 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                             loading: () => const SizedBox.shrink(),
                             error: (_, _) => const SizedBox.shrink(),
                           ),
-                          loading: () => const Center(child: CircularProgressIndicator()),
+                          loading: () =>
+                              const Center(child: CircularProgressIndicator()),
                           error: (_, _) => const SizedBox.shrink(),
                         ),
                       ],
@@ -426,26 +597,28 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                 ),
               ),
 
-            // All-Time Personal Records (PRs) Section
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-                child: const Text(
-                  'ALL-TIME PERSONAL RECORDS',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textMuted,
-                    letterSpacing: 1.2,
-                    fontFamily: 'JetBrains Mono',
+            // All-Time Personal Records (PRs) Section — only on All Time filter
+            if (filter.filter == AnalyticsFilter.allTime)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+                  child: const Text(
+                    'ALL-TIME PERSONAL RECORDS',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textMuted,
+                      letterSpacing: 1.2,
+                      fontFamily: 'JetBrains Mono',
+                    ),
                   ),
                 ),
               ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: prsAsync.when(
+            if (filter.filter == AnalyticsFilter.allTime)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: prsAsync.when(
                   data: (prs) {
                     if (prs.isEmpty) {
                       return Container(
@@ -474,7 +647,8 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: prs.length,
-                        separatorBuilder: (_, _) => const Divider(color: AppColors.hairline, height: 1),
+                        separatorBuilder: (_, _) =>
+                            const Divider(color: AppColors.hairline, height: 1),
                         itemBuilder: (context, index) {
                           final pr = prs[index];
                           return ListTile(
@@ -497,7 +671,10 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                             ),
                             subtitle: Text(
                               'Set on ${pr.computedAt.toLocal().toString().split(' ')[0]}',
-                              style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                              style: const TextStyle(
+                                color: AppColors.textMuted,
+                                fontSize: 12,
+                              ),
                             ),
                           );
                         },
@@ -506,11 +683,18 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                   },
                   loading: () => const Padding(
                     padding: EdgeInsets.all(24),
-                    child: Center(child: CircularProgressIndicator(color: AppColors.traceCalm)),
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.traceCalm,
+                      ),
+                    ),
                   ),
                   error: (e, _) => Padding(
                     padding: const EdgeInsets.all(16),
-                    child: Text('Error loading PRs: $e', style: const TextStyle(color: AppColors.statusDanger)),
+                    child: Text(
+                      'Error loading PRs: $e',
+                      style: const TextStyle(color: AppColors.statusDanger),
+                    ),
                   ),
                 ),
               ),
@@ -538,103 +722,139 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                   return const SliverToBoxAdapter(
                     child: Padding(
                       padding: EdgeInsets.all(20),
-                      child: Text('No GPS activities found for this filter period.', style: TextStyle(color: AppColors.textMuted)),
+                      child: Text(
+                        'No GPS activities found for this filter period.',
+                        style: TextStyle(color: AppColors.textMuted),
+                      ),
                     ),
                   );
                 }
                 return SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final session = sessions[index];
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-                        child: InkWell(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => RunDetailScreen(session: session),
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final session = sessions[index];
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 6,
+                      ),
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => RunDetailScreen(session: session),
+                            ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfacePanel,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.hairline),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  color: AppColors.surfaceInset,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.directions_run,
+                                  color: AppColors.traceCalm,
+                                  size: 22,
+                                ),
                               ),
-                            );
-                          },
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: AppColors.surfacePanel,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.hairline),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 42,
-                                  height: 42,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.surfaceInset,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Icon(Icons.directions_run, color: AppColors.traceCalm, size: 22),
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '${session.distanceKm.toStringAsFixed(2)} km  •  ${_formatDuration(session.movingDurationSeconds)}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.textPrimary,
-                                          fontFamily: 'JetBrains Mono',
-                                        ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${session.distanceKm.toStringAsFixed(2)} km  •  ${_formatDuration(session.movingDurationSeconds)}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.textPrimary,
+                                        fontFamily: 'JetBrains Mono',
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        session.startTime.toLocal().toString().substring(0, 16),
-                                        style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      session.startTime
+                                          .toLocal()
+                                          .toString()
+                                          .substring(0, 16),
+                                      style: const TextStyle(
+                                        color: AppColors.textMuted,
+                                        fontSize: 12,
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
-                                const Icon(Icons.chevron_right, color: AppColors.textMuted),
-                              ],
-                            ),
+                              ),
+                              const Icon(
+                                Icons.chevron_right,
+                                color: AppColors.textMuted,
+                              ),
+                            ],
                           ),
                         ),
-                      );
-                    },
-                    childCount: sessions.length,
-                  ),
+                      ),
+                    );
+                  }, childCount: sessions.length),
                 );
               },
               loading: () => const SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.all(24),
-                  child: Center(child: CircularProgressIndicator(color: AppColors.traceCalm)),
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.traceCalm,
+                    ),
+                  ),
                 ),
               ),
               error: (e, _) => SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
-                  child: Text('Error loading sessions: $e', style: const TextStyle(color: AppColors.statusDanger)),
+                  child: Text(
+                    'Error loading sessions: $e',
+                    style: const TextStyle(color: AppColors.statusDanger),
+                  ),
                 ),
               ),
             ),
 
-            const SliverToBoxAdapter(child: SizedBox(height: 100)), // Bottom padding for navigation bar
+            const SliverToBoxAdapter(
+              child: SizedBox(height: 100),
+            ), // Bottom padding for navigation bar
           ],
         ),
       ),
     );
   }
 
-  Widget _buildFilterTab(WidgetRef ref, AnalyticsFilter filterType, String label, AnalyticsFilter currentFilter) {
-    final isSelected = filterType == currentFilter;
+  Widget _buildFilterTab(
+    WidgetRef ref,
+    AnalyticsFilter filterType,
+    String label,
+    AnalyticsFilterState filterState,
+  ) {
+    final isSelected = filterType == filterState.filter;
     return GestureDetector(
-      onTap: () => ref.read(analyticsFilterProvider.notifier).filter = filterType,
+      onTap: () async {
+        if (filterType == AnalyticsFilter.custom) {
+          _showCustomDateRangeModal(filterState);
+        } else {
+          ref.read(analyticsFilterProvider.notifier).setFilter(filterType);
+        }
+      },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.surfaceRaised : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
@@ -642,7 +862,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
             color: isSelected ? AppColors.textPrimary : AppColors.textMuted,
           ),
@@ -651,7 +871,271 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     );
   }
 
-  Widget _buildSummaryCard(String title, String value, String unit, Color accentColor) {
+  Future<void> _showCustomDateRangeModal(
+    AnalyticsFilterState filterState,
+  ) async {
+    DateTime tempStart =
+        filterState.customStart ??
+        DateTime.now().subtract(const Duration(days: 7));
+    DateTime tempEnd = filterState.customEnd ?? DateTime.now();
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return AlertDialog(
+              backgroundColor: AppColors.surfacePanel,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: const Text(
+                'Custom Date Range',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'JetBrains Mono',
+                ),
+              ),
+              content: SizedBox(
+                width: 300,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'QUICK SELECT',
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildPresetChip('Last 7 Days', () {
+                          final now = DateTime.now();
+                          setModalState(() {
+                            tempStart = now.subtract(const Duration(days: 7));
+                            tempEnd = now;
+                          });
+                        }),
+                        _buildPresetChip('Last 30 Days', () {
+                          final now = DateTime.now();
+                          setModalState(() {
+                            tempStart = now.subtract(const Duration(days: 30));
+                            tempEnd = now;
+                          });
+                        }),
+                        _buildPresetChip('This Month', () {
+                          final now = DateTime.now();
+                          setModalState(() {
+                            tempStart = DateTime(now.year, now.month, 1);
+                            tempEnd = now;
+                          });
+                        }),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'DATE RANGE',
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceRaised,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.hairline),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              onTap: () async {
+                                final picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: tempStart,
+                                  firstDate: DateTime(2020),
+                                  lastDate: DateTime.now(),
+                                  builder: (context, child) => Theme(
+                                    data: ThemeData.dark(),
+                                    child: child!,
+                                  ),
+                                );
+                                if (picked != null) {
+                                  setModalState(() {
+                                    tempStart = picked;
+                                    if (tempStart.isAfter(tempEnd)) {
+                                      tempEnd = tempStart;
+                                    }
+                                  });
+                                }
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 4,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'START',
+                                      style: TextStyle(
+                                        color: AppColors.textMuted,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _formatDate(tempStart),
+                                      style: const TextStyle(
+                                        color: AppColors.textPrimary,
+                                        fontSize: 12,
+                                        fontFamily: 'JetBrains Mono',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8),
+                            child: Icon(
+                              Icons.arrow_forward,
+                              size: 14,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                          Expanded(
+                            child: InkWell(
+                              onTap: () async {
+                                final picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: tempEnd,
+                                  firstDate: tempStart,
+                                  lastDate: DateTime.now(),
+                                  builder: (context, child) => Theme(
+                                    data: ThemeData.dark(),
+                                    child: child!,
+                                  ),
+                                );
+                                if (picked != null) {
+                                  setModalState(() {
+                                    tempEnd = picked;
+                                  });
+                                }
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 4,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'END',
+                                      style: TextStyle(
+                                        color: AppColors.textMuted,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _formatDate(tempEnd),
+                                      style: const TextStyle(
+                                        color: AppColors.textPrimary,
+                                        fontSize: 12,
+                                        fontFamily: 'JetBrains Mono',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: AppColors.textMuted),
+                  ),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.traceHot,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () {
+                    ref
+                        .read(analyticsFilterProvider.notifier)
+                        .setFilter(
+                          AnalyticsFilter.custom,
+                          customStart: tempStart,
+                          customEnd: tempEnd,
+                        );
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Apply'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildPresetChip(String label, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceRaised,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: AppColors.hairline),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(color: AppColors.textPrimary, fontSize: 11),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSummaryCard(
+    String title,
+    String value,
+    String unit,
+    Color accentColor,
+  ) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -704,7 +1188,13 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     );
   }
 
-  Widget _buildComparisonRow(String label, String currentVal, String priorVal, String diffStr, bool positive) {
+  Widget _buildComparisonRow(
+    String label,
+    String currentVal,
+    String priorVal,
+    String diffStr,
+    bool positive,
+  ) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -712,11 +1202,24 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(currentVal, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontFamily: 'JetBrains Mono')),
+            Text(
+              currentVal,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+                fontFamily: 'JetBrains Mono',
+              ),
+            ),
             const SizedBox(height: 2),
             Row(
               children: [
-                Text(priorVal, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                Text(
+                  priorVal,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textMuted,
+                  ),
+                ),
                 if (diffStr.isNotEmpty) ...[
                   const SizedBox(width: 6),
                   Text(
@@ -724,7 +1227,9 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
-                      color: positive ? AppColors.traceCalm : AppColors.statusDanger,
+                      color: positive
+                          ? AppColors.traceCalm
+                          : AppColors.statusDanger,
                     ),
                   ),
                 ],
