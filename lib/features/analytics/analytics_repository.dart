@@ -67,6 +67,31 @@ class AnalyticsRepository {
     }).toList();
   }
 
+  /// Gets personal records (PRs) for each distance bucket within [start] and [end].
+  Future<List<BestEffortRow>> getPrsInRange(DateTime start, DateTime end) async {
+    final result = await _db.customSelect(
+      '''
+      SELECT e.distance_bucket, MIN(e.best_duration_seconds) as best_duration_seconds, e.session_id, e.computed_at
+      FROM analytics_best_efforts e
+      JOIN workout_sessions s ON e.session_id = s.id
+      WHERE e.distance_bucket != 'none'
+        AND s.start_time >= ? AND s.start_time <= ?
+      GROUP BY e.distance_bucket
+      ORDER BY best_duration_seconds ASC
+      ''',
+      variables: [Variable.withDateTime(start), Variable.withDateTime(end)],
+    ).get();
+
+    return result.map((row) {
+      return BestEffortRow(
+        distanceBucket: row.read<String>('distance_bucket'),
+        bestDurationSeconds: row.read<int>('best_duration_seconds'),
+        sessionId: row.read<int>('session_id'),
+        computedAt: row.read<DateTime>('computed_at'),
+      );
+    }).toList();
+  }
+
   /// Gets summary stats for GPS sessions between [start] and [end].
   Future<AnalyticsSummary> getSummaryInRange(DateTime start, DateTime end) async {
     final query = _db.select(_db.workoutSessions)

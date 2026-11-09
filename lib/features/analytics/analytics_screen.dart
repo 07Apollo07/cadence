@@ -101,6 +101,15 @@ final allTimePrsProvider = FutureProvider.autoDispose<List<BestEffortRow>>((
   return repo.getAllTimePrs();
 });
 
+final rangePrsProvider = FutureProvider.autoDispose<List<BestEffortRow>>((
+  ref,
+) async {
+  final repo = ref.watch(analyticsRepositoryProvider);
+  final filterState = ref.watch(analyticsFilterProvider);
+  final range = _getDateRange(filterState);
+  return repo.getPrsInRange(range.$1, range.$2);
+});
+
 final analyticsSessionsProvider =
     FutureProvider.autoDispose<List<WorkoutSession>>((ref) async {
       final repo = ref.watch(analyticsRepositoryProvider);
@@ -282,9 +291,11 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   @override
   Widget build(BuildContext context) {
     final filter = ref.watch(analyticsFilterProvider);
+    final isAllTime = filter.filter == AnalyticsFilter.allTime;
     final summaryAsync = ref.watch(analyticsSummaryProvider);
     final priorSummaryAsync = ref.watch(priorAnalyticsSummaryProvider);
-    final prsAsync = ref.watch(allTimePrsProvider);
+    final prsAsync = isAllTime ? ref.watch(allTimePrsProvider) : ref.watch(rangePrsProvider);
+    final allTimePrsAsync = ref.watch(allTimePrsProvider);
     final sessionsAsync = ref.watch(analyticsSessionsProvider);
     final missingCountAsync = ref.watch(missingAnalyticsCountProvider);
 
@@ -480,52 +491,6 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
               ),
             ),
 
-            // Compact "best:" line for non-All-Time filters
-            if (filter.filter != AnalyticsFilter.allTime)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-                  child: prsAsync.when(
-                    data: (prs) {
-                      if (prs.isEmpty) return const SizedBox.shrink();
-                      final children = <Widget>[];
-                      for (var i = 0; i < prs.length; i++) {
-                        if (i > 0) children.add(const SizedBox(width: 16));
-                        children.add(
-                          Text(
-                            '${prs[i].distanceBucket} — '
-                            '${_formatDuration(prs[i].bestDurationSeconds)}',
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'JetBrains Mono',
-                            ),
-                          ),
-                        );
-                      }
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          const Text(
-                            'best: ',
-                            style: TextStyle(
-                              color: AppColors.textMuted,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              fontFamily: 'JetBrains Mono',
-                            ),
-                          ),
-                          ...children,
-                        ],
-                      );
-                    },
-                    loading: () => const SizedBox.shrink(),
-                    error: (_, _) => const SizedBox.shrink(),
-                  ),
-                ),
-              ),
-
             // 4-Week Comparison Panel (Visible when Last 4 Weeks selected)
             if (filter.filter == AnalyticsFilter.last4Weeks)
               SliverToBoxAdapter(
@@ -597,28 +562,26 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                 ),
               ),
 
-            // All-Time Personal Records (PRs) Section — only on All Time filter
-            if (filter.filter == AnalyticsFilter.allTime)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-                  child: const Text(
-                    'ALL-TIME PERSONAL RECORDS',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textMuted,
-                      letterSpacing: 1.2,
-                      fontFamily: 'JetBrains Mono',
-                    ),
+            // Personal Records Section — shown on all filters
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+                child: Text(
+                  isAllTime ? 'ALL-TIME PERSONAL RECORDS' : 'PERSONAL RECORDS',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textMuted,
+                    letterSpacing: 1.2,
+                    fontFamily: 'JetBrains Mono',
                   ),
                 ),
               ),
-            if (filter.filter == AnalyticsFilter.allTime)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: prsAsync.when(
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: prsAsync.when(
                   data: (prs) {
                     if (prs.isEmpty) {
                       return Container(
@@ -628,10 +591,12 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: AppColors.hairline),
                         ),
-                        child: const Center(
+                        child: Center(
                           child: Text(
-                            'No personal records yet. Complete GPS runs to set PRs!',
-                            style: TextStyle(color: AppColors.textMuted),
+                            isAllTime
+                                ? 'No personal records yet. Complete GPS runs to set PRs!'
+                                : 'No personal records set in this period.',
+                            style: const TextStyle(color: AppColors.textMuted),
                             textAlign: TextAlign.center,
                           ),
                         ),
@@ -651,6 +616,15 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                             const Divider(color: AppColors.hairline, height: 1),
                         itemBuilder: (context, index) {
                           final pr = prs[index];
+                          final allTimePrs =
+                              allTimePrsAsync.asData?.value ?? [];
+                          final allTimeMatch = allTimePrs
+                              .where((p) =>
+                                  p.distanceBucket == pr.distanceBucket)
+                              .firstOrNull;
+                          final dateStr =
+                              'Set on ${pr.computedAt.toLocal().toString().split(' ')[0]}';
+
                           return ListTile(
                             title: Text(
                               pr.distanceBucket,
@@ -669,13 +643,38 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                                 fontFamily: 'JetBrains Mono',
                               ),
                             ),
-                            subtitle: Text(
-                              'Set on ${pr.computedAt.toLocal().toString().split(' ')[0]}',
-                              style: const TextStyle(
-                                color: AppColors.textMuted,
-                                fontSize: 12,
-                              ),
-                            ),
+                            subtitle: isAllTime
+                                ? Text(
+                                    dateStr,
+                                    style: const TextStyle(
+                                      color: AppColors.textMuted,
+                                      fontSize: 12,
+                                    ),
+                                  )
+                                : Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        dateStr,
+                                        style: const TextStyle(
+                                          color: AppColors.textMuted,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                      if (allTimeMatch != null) ...[
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          'All-time best: ${_formatDuration(allTimeMatch.bestDurationSeconds)}',
+                                          style: const TextStyle(
+                                            color: AppColors.textMuted,
+                                            fontSize: 11,
+                                            fontStyle: FontStyle.italic,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
                           );
                         },
                       ),
